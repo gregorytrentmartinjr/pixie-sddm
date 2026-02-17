@@ -22,6 +22,7 @@ A clean, modern, and minimal SDDM theme inspired by Google Pixel UI and Material
 
 The easiest way to install **Pixie** is by using the provided installation script:
 
+**(Recommended)**
 ```bash
 git clone https://github.com/xCaptaiN09/pixie-sddm.git && cd pixie-sddm && sudo ./install.sh
 ```
