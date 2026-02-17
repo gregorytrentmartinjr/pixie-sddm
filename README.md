@@ -36,17 +36,22 @@ A clean, modern, and minimal SDDM theme inspired by Google Pixel UI and Material
 
 ## 🚀 Installation
 
-The easiest way to install **Pixie** is by using the provided interactive installation script:
+The easiest way to install **Pixie** is by using an AUR helper or the provided interactive installation script:
 
-**(Recommended)**
+### 1. Arch Linux (AUR)
+If you are on Arch Linux, you can install the theme from the AUR:
+```bash
+yay -S pixie-sddm-git
+```
+**Important:** After installation, you must manually apply the theme (see the [Configuration](#-configuration) section below).
+
+### 2. Automatic Script (Recommended)
 ```bash
 git clone https://github.com/xCaptaiN09/pixie-sddm.git && cd pixie-sddm && sudo ./install.sh
 ```
-
 The script will copy the files and offer to automatically set Pixie as your active theme.
 
-### Manual Installation (Alternative)
-
+### 3. Manual Installation
 1. **Clone and enter the repository:**
    ```bash
    git clone https://github.com/xCaptaiN09/pixie-sddm.git && cd pixie-sddm
@@ -55,10 +60,10 @@ The script will copy the files and offer to automatically set Pixie as your acti
 2. **Copy the theme to SDDM directory:**
    ```bash
    sudo mkdir -p /usr/share/sddm/themes/pixie
-   sudo cp -r * /usr/share/sddm/themes/pixie/
+   sudo cp -r assets components Main.qml metadata.desktop theme.conf LICENSE /usr/share/sddm/themes/pixie/
    ```
 
-### 3. Test the theme (Optional)
+### 4. Test the theme (Optional)
 You can test the theme without logging out using the `sddm-greeter`:
 ```bash
 sddm-greeter --test-mode --theme /usr/share/sddm/themes/pixie
@@ -66,8 +71,14 @@ sddm-greeter --test-mode --theme /usr/share/sddm/themes/pixie
 
 ## 🛠 Configuration
 
-If you didn't use the automatic installer, you can set **Pixie** as your active theme by editing your SDDM configuration file (usually `/etc/sddm.conf` or a file in `/etc/sddm.conf.d/`):
+To set **Pixie** as your active theme, create or edit the SDDM configuration file (usually `/etc/sddm.conf.d/theme.conf`):
 
+```bash
+sudo mkdir -p /etc/sddm.conf.d
+echo -e "[Theme]\nCurrent=pixie" | sudo tee /etc/sddm.conf.d/theme.conf
+```
+
+Alternatively, edit `/etc/sddm.conf` directly:
 ```ini
 [Theme]
 Current=pixie
