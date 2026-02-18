@@ -76,7 +76,40 @@ git clone https://github.com/xCaptaiN09/pixie-sddm.git && cd pixie-sddm && sudo 
 ```
 The script will copy the files and offer to automatically set Pixie as your active theme.
 
-### 3. Manual Installation
+### 3. NixOS (Declarative)
+NixOS users should add the following snippet to their `configuration.nix` (or a separate module):
+
+```nix
+{ pkgs, ... }:
+
+{
+  services.displayManager.sddm = {
+    enable = true;
+    theme = "pixie";
+  };
+
+  environment.systemPackages = [
+    (pkgs.stdenv.mkDerivation {
+      name = "pixie-sddm";
+      src = pkgs.fetchFromGitHub {
+        owner = "xCaptaiN09";
+        repo = "pixie-sddm";
+        rev = "main";
+        sha256 = "sha256-0000000000000000000000000000000000000000000="; # Update after first build attempt
+      };
+      installPhase = ''
+        mkdir -p $out/share/sddm/themes/pixie
+        cp -r * $out/share/sddm/themes/pixie/
+      '';
+    })
+    pkgs.libsForQt5.qtgraphicaleffects
+    pkgs.libsForQt5.qtquickcontrols2
+    pkgs.libsForQt5.qtsvg
+  ];
+}
+```
+
+### 4. Manual Installation
 1. **Clone and enter the repository:**
    ```bash
    git clone https://github.com/xCaptaiN09/pixie-sddm.git && cd pixie-sddm

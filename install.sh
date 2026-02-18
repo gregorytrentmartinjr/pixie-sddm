@@ -16,6 +16,14 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}==>${NC} Installing ${GREEN}${THEME_NAME}${NC} SDDM theme..."
 
+# Check for NixOS
+if [ -f /etc/NIXOS ]; then
+    echo -e "${RED}Warning:${NC} NixOS detected. Manual file copying will not work on NixOS."
+    echo -e "Please use the declarative method in your ${BLUE}configuration.nix${NC}."
+    echo -e "See the ${GREEN}README.md${NC} for the NixOS configuration snippet."
+    exit 1
+fi
+
 # Check for root
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Error:${NC} Please run as root (use sudo)."
