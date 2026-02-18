@@ -34,6 +34,31 @@ A clean, modern, and minimal SDDM theme inspired by Google Pixel UI and Material
   - Automatically handles session names and icons for a polished look.
 - **Blur Effects:** Adaptive background blur that transitions smoothly when the login card is active.
 
+## 📦 Prerequisites
+
+To ensure the theme works correctly (and to avoid a black screen), you must install the following Qt5 modules:
+
+### Arch Linux / CachyOS / Manjaro / EndeavourOS
+```bash
+sudo pacman -S --needed qt5-graphicaleffects qt5-quickcontrols2 qt5-svg
+```
+
+### Ubuntu / Debian / Linux Mint / Kali
+```bash
+sudo apt update
+sudo apt install qml-module-qtgraphicaleffects qml-module-qtquick-controls2 qml-module-qtquick-layouts libqt5svg5
+```
+
+### Fedora / RHEL / CentOS
+```bash
+sudo dnf install qt5-qtgraphicaleffects qt5-qtquickcontrols2 qt5-qtsvg
+```
+
+### openSUSE
+```bash
+sudo zypper install libqt5-qtgraphicaleffects libqt5-qtquickcontrols2 libqt5-qtsvg
+```
+
 ## 🚀 Installation
 
 The easiest way to install **Pixie** is by using an AUR helper or the provided interactive installation script:
@@ -91,12 +116,6 @@ You can easily customize the theme by editing the `theme.conf` file inside the t
 - **Background:** Replace `assets/background.jpg` with your own wallpaper. The theme will automatically adapt its colors!
 - **Accent Fallback:** The `accentColor` setting now acts as a smart fallback if the automatic extraction needs a manual hint.
 - **Fonts:** The theme uses `Google Sans Flex` (included).
-
-## 📦 Requirements
-
-- **SDDM**
-- **Qt 5** (Specifically `QtQuick Controls 2`, `Layouts`, and `GraphicalEffects`)
-- **Nerd Fonts** (for power icons)
 
 ## 🤝 Credits
 
