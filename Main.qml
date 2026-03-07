@@ -37,6 +37,29 @@ Rectangle {
         return s.charAt(0).toUpperCase() + s.slice(1);
     }
 
+    // Returns the background image path for a given user index.
+    // Looks for assets/backgrounds/<username>.jpg (or .png/.webp) then falls back to config.background.
+    function getUserBackground(index) {
+        if (typeof userModel === "undefined" || userModel.count === 0)
+            return config.background;
+        var idx = (index >= 0 && index < userModel.count) ? index : 0;
+        var edit = userModel.data(userModel.index(idx, 0), Qt.EditRole);
+        var username = edit ? edit.toString().trim() : "";
+        if (username)
+            return Qt.resolvedUrl("assets/backgrounds/" + username + ".jpg");
+        return config.background;
+    }
+
+    onUserIndexChanged: {
+        var newBg = getUserBackground(userIndex);
+        var currentSrc = bgCurrent.source.toString();
+        var newSrc = newBg.toString();
+        if (currentSrc === newSrc) return;
+        bgCrossfade.stop();
+        bgNext.opacity = 0;
+        bgNext.source = newBg;
+    }
+
     function doLogin() {
         if (!loginState.visible || isLoggingIn) return;
         
@@ -106,7 +129,7 @@ Rectangle {
         id: colorDelay
         interval: 1000 // Give it a full second
         repeat: true   // Keep trying until we succeed
-        running: backgroundImage.status === Image.Ready && !colorExtractor.processed
+        running: bgCurrent.status === Image.Ready && !colorExtractor.processed
         onTriggered: colorExtractor.requestPaint()
     }
 
@@ -122,7 +145,7 @@ Rectangle {
             var ctx = getContext("2d");
             var res = 60;
             ctx.clearRect(0, 0, res, res);
-            ctx.drawImage(backgroundImage, 0, 0, res, res);
+            ctx.drawImage(bgCurrent, 0, 0, res, res);
             var imgData = ctx.getImageData(0, 0, res, res).data;
             
             if (!imgData || imgData.length === 0) return;
@@ -183,9 +206,9 @@ Rectangle {
     }
 
     Connections {
-        target: backgroundImage
+        target: bgCurrent
         function onStatusChanged() {
-            if (backgroundImage.status === Image.Ready) {
+            if (bgCurrent.status === Image.Ready) {
                 colorExtractor.processed = false;
                 colorDelay.start();
             }
@@ -196,18 +219,69 @@ Rectangle {
     FontLoader { id: fontMedium; source: "assets/fonts/FlexRounded-M.ttf" }
     FontLoader { id: fontBold; source: "assets/fonts/FlexRounded-B.ttf" }
 
-    Image {
-        id: backgroundImage
-        source: config.background
+    // Crossfade background container — holds the current and next background images.
+    // When the user changes, bgNext loads the new image and fades in over bgCurrent,
+    // then bgCurrent adopts the new source and bgNext is reset to transparent.
+    Item {
+        id: backgroundContainer
         anchors.fill: parent
-        fillMode: Image.PreserveAspectCrop
+
+        Image {
+            id: bgCurrent
+            anchors.fill: parent
+            source: config.background
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+        }
+
+        Image {
+            id: bgNext
+            anchors.fill: parent
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            opacity: 0
+
+            onStatusChanged: {
+                if (status === Image.Ready && source !== "") {
+                    bgCrossfade.restart();
+                } else if (status === Image.Error) {
+                    // Try .png extension before falling back to the theme default
+                    var src = source.toString();
+                    var defaultBg = Qt.resolvedUrl(config.background).toString();
+                    if (src !== defaultBg && src.match(/\.jpg$/i)) {
+                        source = src.replace(/\.jpg$/i, ".png");
+                    } else if (src !== defaultBg && src.match(/\.png$/i)) {
+                        source = src.replace(/\.png$/i, ".webp");
+                    } else {
+                        source = config.background;
+                    }
+                }
+            }
+        }
+
+        SequentialAnimation {
+            id: bgCrossfade
+            NumberAnimation {
+                target: bgNext
+                property: "opacity"
+                from: 0; to: 1
+                duration: 600
+                easing.type: Easing.InOutQuad
+            }
+            ScriptAction {
+                script: {
+                    bgCurrent.source = bgNext.source;
+                    bgNext.opacity = 0;
+                }
+            }
+        }
     }
 
     // High-Quality Standalone Blur (Qt6 Native)
     MultiEffect {
         id: backgroundBlur
         anchors.fill: parent
-        source: backgroundImage
+        source: backgroundContainer
         blurEnabled: true
         blur: loginState.visible ? 1.0 : 0.0
         opacity: loginState.visible ? 1.0 : 0.0
@@ -280,7 +354,7 @@ Rectangle {
         Clock {
             id: mainClock
             anchors.centerIn: parent
-            backgroundSource: config.background
+            backgroundSource: bgCurrent.source
             baseAccent: container.extractedAccent
             fontFamily: config.fontFamily
             opacity: colorExtractor.processed ? 1 : 0
@@ -409,15 +483,18 @@ Rectangle {
                             smooth: true
                             visible: false
                             
-                            Component.onCompleted: {
+                            source: {
                                 var s = Qt.resolvedUrl("assets/avatar.jpg");
                                 if (typeof userModel !== "undefined" && userModel.count > 0) {
-                                    var icon = userModel.data(userModel.index(container.userIndex, 0), Qt.UserRole + 3);
-                                    if (icon && icon.toString().match(/\.(jpg|jpeg|png|bmp|webp|svg)$/i)) {
-                                        s = icon.toString();
+                                    var idx = container.userIndex;
+                                    if (idx >= 0 && idx < userModel.count) {
+                                        var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 3);
+                                        if (icon && icon.toString().match(/\.(jpg|jpeg|png|bmp|webp|svg)$/i)) {
+                                            s = Qt.resolvedUrl(icon.toString());
+                                        }
                                     }
                                 }
-                                source = s;
+                                return s;
                             }
                             
                             onStatusChanged: {
