@@ -489,8 +489,10 @@ Rectangle {
                                     var idx = container.userIndex;
                                     if (idx >= 0 && idx < userModel.count) {
                                         var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 3);
-                                        if (icon && icon.toString().match(/\.(jpg|jpeg|png|bmp|webp|svg)$/i)) {
-                                            s = Qt.resolvedUrl(icon.toString());
+                                        // AccountsService paths have no extension (e.g. /var/lib/AccountsService/icons/username)
+                                        // so accept any non-empty string, not just known extensions
+                                        if (icon && icon.toString().trim().length > 0) {
+                                            s = Qt.resolvedUrl(icon.toString().trim());
                                         }
                                     }
                                 }
