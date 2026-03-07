@@ -25,6 +25,14 @@ Rectangle {
     Component.onCompleted: {
         if (typeof userModel !== "undefined" && userModel.lastIndex >= 0) userIndex = userModel.lastIndex;
         if (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) sessionIndex = sessionModel.lastIndex;
+        // onUserIndexChanged won't fire if userIndex stayed at 0 (single-user systems),
+        // so force-apply the initial per-user background via Qt.callLater to ensure
+        // bgCurrent is fully constructed before we touch it.
+        Qt.callLater(function() {
+            var newBg = getUserBackground(userIndex);
+            if (bgCurrent.source.toString() !== newBg.toString())
+                bgCurrent.source = newBg;
+        });
     }
 
     function cleanName(name) {
@@ -35,6 +43,31 @@ Rectangle {
         if (s.indexOf(".desktop") !== -1) s = s.substring(0, s.indexOf(".desktop"));
         s = s.replace(/[-_]/g, ' ');
         return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    // Returns the background image path for a given user index.
+    // Looks for assets/backgrounds/<username>.jpg (or .png/.webp) then falls back to config.background.
+    function getUserBackground(index) {
+        if (typeof userModel === "undefined" || userModel.count === 0)
+            return config.background;
+        var idx = (index >= 0 && index < userModel.count) ? index : 0;
+        // Use NameRole (Qt.UserRole+1) — guaranteed to be the system login name,
+        // unlike Qt.EditRole which may return the display/real name on some SDDM builds.
+        var nameRole = userModel.data(userModel.index(idx, 0), Qt.UserRole + 1);
+        var username = nameRole ? nameRole.toString().trim() : "";
+        if (username)
+            return Qt.resolvedUrl("assets/backgrounds/" + username + ".jpg");
+        return config.background;
+    }
+
+    onUserIndexChanged: {
+        var newBg = getUserBackground(userIndex);
+        var currentSrc = bgCurrent.source.toString();
+        var newSrc = newBg.toString();
+        if (currentSrc === newSrc) return;
+        bgCrossfade.stop();
+        bgNext.opacity = 0;
+        bgNext.source = newBg;
     }
 
     function doLogin() {
@@ -106,7 +139,7 @@ Rectangle {
         id: colorDelay
         interval: 1000 // Give it a full second
         repeat: true   // Keep trying until we succeed
-        running: backgroundImage.status === Image.Ready && !colorExtractor.processed
+        running: bgCurrent.status === Image.Ready && !colorExtractor.processed
         onTriggered: colorExtractor.requestPaint()
     }
 
@@ -122,7 +155,7 @@ Rectangle {
             var ctx = getContext("2d");
             var res = 60;
             ctx.clearRect(0, 0, res, res);
-            ctx.drawImage(backgroundImage, 0, 0, res, res);
+            ctx.drawImage(bgCurrent, 0, 0, res, res);
             var imgData = ctx.getImageData(0, 0, res, res).data;
             
             if (!imgData || imgData.length === 0) return;
@@ -183,9 +216,9 @@ Rectangle {
     }
 
     Connections {
-        target: backgroundImage
+        target: bgCurrent
         function onStatusChanged() {
-            if (backgroundImage.status === Image.Ready) {
+            if (bgCurrent.status === Image.Ready) {
                 colorExtractor.processed = false;
                 colorDelay.start();
             }
@@ -196,18 +229,69 @@ Rectangle {
     FontLoader { id: fontMedium; source: "assets/fonts/FlexRounded-M.ttf" }
     FontLoader { id: fontBold; source: "assets/fonts/FlexRounded-B.ttf" }
 
-    Image {
-        id: backgroundImage
-        source: config.background
+    // Crossfade background container — holds the current and next background images.
+    // When the user changes, bgNext loads the new image and fades in over bgCurrent,
+    // then bgCurrent adopts the new source and bgNext is reset to transparent.
+    Item {
+        id: backgroundContainer
         anchors.fill: parent
-        fillMode: Image.PreserveAspectCrop
+
+        Image {
+            id: bgCurrent
+            anchors.fill: parent
+            source: config.background
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+        }
+
+        Image {
+            id: bgNext
+            anchors.fill: parent
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            opacity: 0
+
+            onStatusChanged: {
+                if (status === Image.Ready && source !== "") {
+                    bgCrossfade.restart();
+                } else if (status === Image.Error) {
+                    // Try .png extension before falling back to the theme default
+                    var src = source.toString();
+                    var defaultBg = Qt.resolvedUrl(config.background).toString();
+                    if (src !== defaultBg && src.match(/\.jpg$/i)) {
+                        source = src.replace(/\.jpg$/i, ".png");
+                    } else if (src !== defaultBg && src.match(/\.png$/i)) {
+                        source = src.replace(/\.png$/i, ".webp");
+                    } else {
+                        source = config.background;
+                    }
+                }
+            }
+        }
+
+        SequentialAnimation {
+            id: bgCrossfade
+            NumberAnimation {
+                target: bgNext
+                property: "opacity"
+                from: 0; to: 1
+                duration: 600
+                easing.type: Easing.InOutQuad
+            }
+            ScriptAction {
+                script: {
+                    bgCurrent.source = bgNext.source;
+                    bgNext.opacity = 0;
+                }
+            }
+        }
     }
 
     // High-Quality Standalone Blur (Qt6 Native)
     MultiEffect {
         id: backgroundBlur
         anchors.fill: parent
-        source: backgroundImage
+        source: backgroundContainer
         blurEnabled: true
         blur: loginState.visible ? 1.0 : 0.0
         opacity: loginState.visible ? 1.0 : 0.0
@@ -280,7 +364,7 @@ Rectangle {
         Clock {
             id: mainClock
             anchors.centerIn: parent
-            backgroundSource: config.background
+            backgroundSource: bgCurrent.source
             baseAccent: container.extractedAccent
             fontFamily: config.fontFamily
             opacity: colorExtractor.processed ? 1 : 0
@@ -351,14 +435,15 @@ Rectangle {
                     Layout.preferredWidth: 120
                     Layout.preferredHeight: 120
                     Layout.alignment: Qt.AlignHCenter
-                    
+
+                    // Fallback: letter initial when no avatar is available
                     Rectangle {
                         id: avatarFallback
                         anchors.fill: parent
                         color: "#2D2F27"
                         radius: width / 2
                         visible: avatar.status !== Image.Ready
-                        
+
                         Text {
                             anchors.centerIn: parent
                             text: {
@@ -379,52 +464,60 @@ Rectangle {
                         }
                     }
 
-                    // Bulletproof Circular Avatar (Canvas method)
+                    // Circular avatar via Canvas arc clip.
+                    // ctx.drawImage is called with explicit PreserveAspectCrop math so the
+                    // image is centred and cropped, not stretched, before the circle is applied.
                     Canvas {
                         id: avatarCanvas
                         anchors.fill: parent
                         visible: avatar.status === Image.Ready
-                        
+
                         onPaint: {
                             var ctx = getContext("2d");
                             ctx.reset();
                             ctx.beginPath();
-                            ctx.arc(width/2, height/2, width/2, 0, 2 * Math.PI);
+                            ctx.arc(width / 2, height / 2, width / 2, 0, 2 * Math.PI);
                             ctx.closePath();
                             ctx.clip();
-                            ctx.drawImage(avatar, 0, 0, width, height);
-                            console.log("Pixie SDDM: Canvas draw complete.");
-                        }
 
-                        Timer {
-                            id: repaintTimer
-                            interval: 500
-                            onTriggered: avatarCanvas.requestPaint()
+                            // PreserveAspectCrop: scale image so its shorter axis fills the
+                            // canvas, then centre it so the excess is cropped equally.
+                            var iw = avatar.implicitWidth;
+                            var ih = avatar.implicitHeight;
+                            if (iw > 0 && ih > 0) {
+                                var scale = Math.max(width / iw, height / ih);
+                                var dw = iw * scale;
+                                var dh = ih * scale;
+                                ctx.drawImage(avatar, (width - dw) / 2, (height - dh) / 2, dw, dh);
+                            } else {
+                                ctx.drawImage(avatar, 0, 0, width, height);
+                            }
                         }
 
                         Image {
                             id: avatar
                             anchors.fill: parent
-                            fillMode: Image.PreserveAspectCrop
                             smooth: true
                             visible: false
-                            
-                            Component.onCompleted: {
+                            source: {
                                 var s = Qt.resolvedUrl("assets/avatar.jpg");
                                 if (typeof userModel !== "undefined" && userModel.count > 0) {
-                                    var icon = userModel.data(userModel.index(container.userIndex, 0), Qt.UserRole + 3);
-                                    if (icon && icon.toString().match(/\.(jpg|jpeg|png|bmp|webp|svg)$/i)) {
-                                        s = icon.toString();
+                                    var idx = container.userIndex;
+                                    if (idx >= 0 && idx < userModel.count) {
+                                        // IconRole = Qt.UserRole+4 in SDDM 0.18+ (Qt6 era).
+                                        // Qt.UserRole+3 is HomeDirRole and must not be used here.
+                                        // AccountsService icon paths have no file extension, so
+                                        // accept any non-empty string rather than requiring one.
+                                        var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 4);
+                                        if (icon && icon.toString().trim().length > 0) {
+                                            s = Qt.resolvedUrl(icon.toString().trim());
+                                        }
                                     }
                                 }
-                                source = s;
+                                return s;
                             }
-                            
                             onStatusChanged: {
-                                if (status === Image.Ready) {
-                                    console.log("Pixie SDDM: Image ready, repainting Canvas.");
-                                    repaintTimer.start();
-                                }
+                                if (status === Image.Ready) avatarCanvas.requestPaint();
                             }
                         }
                     }
