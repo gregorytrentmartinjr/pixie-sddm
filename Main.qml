@@ -464,19 +464,41 @@ Rectangle {
                         }
                     }
 
-                    // Circular avatar — clipped rectangle preserves aspect ratio naturally
-                    Rectangle {
+                    // Circular avatar via Canvas arc clip.
+                    // ctx.drawImage is called with explicit PreserveAspectCrop math so the
+                    // image is centred and cropped, not stretched, before the circle is applied.
+                    Canvas {
+                        id: avatarCanvas
                         anchors.fill: parent
-                        radius: width / 2
-                        clip: true
-                        color: "transparent"
                         visible: avatar.status === Image.Ready
+
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.reset();
+                            ctx.beginPath();
+                            ctx.arc(width / 2, height / 2, width / 2, 0, 2 * Math.PI);
+                            ctx.closePath();
+                            ctx.clip();
+
+                            // PreserveAspectCrop: scale image so its shorter axis fills the
+                            // canvas, then centre it so the excess is cropped equally.
+                            var iw = avatar.implicitWidth;
+                            var ih = avatar.implicitHeight;
+                            if (iw > 0 && ih > 0) {
+                                var scale = Math.max(width / iw, height / ih);
+                                var dw = iw * scale;
+                                var dh = ih * scale;
+                                ctx.drawImage(avatar, (width - dw) / 2, (height - dh) / 2, dw, dh);
+                            } else {
+                                ctx.drawImage(avatar, 0, 0, width, height);
+                            }
+                        }
 
                         Image {
                             id: avatar
                             anchors.fill: parent
-                            fillMode: Image.PreserveAspectCrop
                             smooth: true
+                            visible: false
                             source: {
                                 var s = Qt.resolvedUrl("assets/avatar.jpg");
                                 if (typeof userModel !== "undefined" && userModel.count > 0) {
@@ -493,6 +515,9 @@ Rectangle {
                                     }
                                 }
                                 return s;
+                            }
+                            onStatusChanged: {
+                                if (status === Image.Ready) avatarCanvas.requestPaint();
                             }
                         }
                     }
