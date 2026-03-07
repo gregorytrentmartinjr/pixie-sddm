@@ -435,14 +435,15 @@ Rectangle {
                     Layout.preferredWidth: 120
                     Layout.preferredHeight: 120
                     Layout.alignment: Qt.AlignHCenter
-                    
+
+                    // Fallback: letter initial when no avatar is available
                     Rectangle {
                         id: avatarFallback
                         anchors.fill: parent
                         color: "#2D2F27"
                         radius: width / 2
                         visible: avatar.status !== Image.Ready
-                        
+
                         Text {
                             anchors.centerIn: parent
                             text: {
@@ -463,36 +464,19 @@ Rectangle {
                         }
                     }
 
-                    // Bulletproof Circular Avatar (Canvas method)
-                    Canvas {
-                        id: avatarCanvas
+                    // Circular avatar — clipped rectangle preserves aspect ratio naturally
+                    Rectangle {
                         anchors.fill: parent
+                        radius: width / 2
+                        clip: true
+                        color: "transparent"
                         visible: avatar.status === Image.Ready
-                        
-                        onPaint: {
-                            var ctx = getContext("2d");
-                            ctx.reset();
-                            ctx.beginPath();
-                            ctx.arc(width/2, height/2, width/2, 0, 2 * Math.PI);
-                            ctx.closePath();
-                            ctx.clip();
-                            ctx.drawImage(avatar, 0, 0, width, height);
-                            console.log("Pixie SDDM: Canvas draw complete.");
-                        }
-
-                        Timer {
-                            id: repaintTimer
-                            interval: 500
-                            onTriggered: avatarCanvas.requestPaint()
-                        }
 
                         Image {
                             id: avatar
                             anchors.fill: parent
                             fillMode: Image.PreserveAspectCrop
                             smooth: true
-                            visible: false
-                            
                             source: {
                                 var s = Qt.resolvedUrl("assets/avatar.jpg");
                                 if (typeof userModel !== "undefined" && userModel.count > 0) {
@@ -509,13 +493,6 @@ Rectangle {
                                     }
                                 }
                                 return s;
-                            }
-                            
-                            onStatusChanged: {
-                                if (status === Image.Ready) {
-                                    console.log("Pixie SDDM: Image ready, repainting Canvas.");
-                                    repaintTimer.start();
-                                }
                             }
                         }
                     }
