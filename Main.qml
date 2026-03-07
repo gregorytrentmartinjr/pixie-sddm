@@ -25,6 +25,14 @@ Rectangle {
     Component.onCompleted: {
         if (typeof userModel !== "undefined" && userModel.lastIndex >= 0) userIndex = userModel.lastIndex;
         if (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) sessionIndex = sessionModel.lastIndex;
+        // onUserIndexChanged won't fire if userIndex stayed at 0 (single-user systems),
+        // so force-apply the initial per-user background via Qt.callLater to ensure
+        // bgCurrent is fully constructed before we touch it.
+        Qt.callLater(function() {
+            var newBg = getUserBackground(userIndex);
+            if (bgCurrent.source.toString() !== newBg.toString())
+                bgCurrent.source = newBg;
+        });
     }
 
     function cleanName(name) {
@@ -43,8 +51,10 @@ Rectangle {
         if (typeof userModel === "undefined" || userModel.count === 0)
             return config.background;
         var idx = (index >= 0 && index < userModel.count) ? index : 0;
-        var edit = userModel.data(userModel.index(idx, 0), Qt.EditRole);
-        var username = edit ? edit.toString().trim() : "";
+        // Use NameRole (Qt.UserRole+1) — guaranteed to be the system login name,
+        // unlike Qt.EditRole which may return the display/real name on some SDDM builds.
+        var nameRole = userModel.data(userModel.index(idx, 0), Qt.UserRole + 1);
+        var username = nameRole ? nameRole.toString().trim() : "";
         if (username)
             return Qt.resolvedUrl("assets/backgrounds/" + username + ".jpg");
         return config.background;
@@ -488,9 +498,11 @@ Rectangle {
                                 if (typeof userModel !== "undefined" && userModel.count > 0) {
                                     var idx = container.userIndex;
                                     if (idx >= 0 && idx < userModel.count) {
-                                        var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 3);
-                                        // AccountsService paths have no extension (e.g. /var/lib/AccountsService/icons/username)
-                                        // so accept any non-empty string, not just known extensions
+                                        // IconRole = Qt.UserRole+4 in SDDM 0.18+ (Qt6 era).
+                                        // Qt.UserRole+3 is HomeDirRole and must not be used here.
+                                        // AccountsService icon paths have no file extension, so
+                                        // accept any non-empty string rather than requiring one.
+                                        var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 4);
                                         if (icon && icon.toString().trim().length > 0) {
                                             s = Qt.resolvedUrl(icon.toString().trim());
                                         }
