@@ -215,12 +215,27 @@ Rectangle {
         }
     }
 
+    // Safety valve: if the background never loads (fresh install, missing file, etc.)
+    // force-show the UI after 3 s so the user is never stuck on a blank screen.
+    Timer {
+        id: startupSafety
+        interval: 3000
+        running: true
+        repeat: false
+        onTriggered: {
+            if (!colorExtractor.processed) colorExtractor.processed = true;
+        }
+    }
+
     Connections {
         target: bgCurrent
         function onStatusChanged() {
             if (bgCurrent.status === Image.Ready) {
                 colorExtractor.processed = false;
                 colorDelay.start();
+            } else if (bgCurrent.status === Image.Error) {
+                // No background asset — skip extraction, show UI with default accent.
+                colorExtractor.processed = true;
             }
         }
     }

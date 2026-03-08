@@ -40,9 +40,18 @@ Item {
 
 
 
-    // Helper to get individual digits for perfect alignment
-    property string timeStr: Qt.formatTime(new Date(), is12Hour ? "hhmm" : "HHmm")
-    property string ampmStr: is12Hour ? Qt.formatTime(new Date(), upperAP ? "AP" : "ap") : ""
+    // Helper to get individual digits for perfect alignment.
+    // In Qt, "hh" only yields 12-hour values when the same format string also
+    // contains "AP"/"ap" — without it, "hh" is 24-hour.  So we use
+    // "hh:mm AP" (→ "03:45 PM") and extract characters by position.
+    property string _raw: Qt.formatTime(new Date(),
+                              is12Hour ? (upperAP ? "hh:mm AP" : "hh:mm ap") : "HHmm")
+    // 24h: _raw is "HHmm" e.g. "1345"          → chars 0-3
+    // 12h: _raw is "hh:mm AP" e.g. "03:45 PM"  → digits at 0,1,3,4; AP at 6+
+    property string timeStr: is12Hour
+                               ? (_raw.charAt(0) + _raw.charAt(1) + _raw.charAt(3) + _raw.charAt(4))
+                               : _raw
+    property string ampmStr: is12Hour ? _raw.substring(6).trim() : ""
 
 
 
@@ -209,8 +218,8 @@ Item {
         running: true
         repeat: true
         onTriggered: {
-            clock.timeStr = Qt.formatTime(new Date(), clock.is12Hour ? "hhmm" : "HHmm")
-            clock.ampmStr = clock.is12Hour ? Qt.formatTime(new Date(), clock.upperAP ? "AP" : "ap") : ""
+            clock._raw = Qt.formatTime(new Date(),
+                             clock.is12Hour ? (clock.upperAP ? "hh:mm AP" : "hh:mm ap") : "HHmm");
         }
     }
 }
