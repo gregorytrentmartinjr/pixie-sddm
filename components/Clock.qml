@@ -27,8 +27,20 @@ Item {
     // assignment (clock.x = ...) permanently breaks the declarative binding on x.
     property int _tick: 0
 
-    // 12h mode when the format string contains AP or ap.
-    property bool is12Hour: clockFormat.indexOf("AP") !== -1 || clockFormat.indexOf("ap") !== -1
+    // 12h detection: read config.clockFormat directly (same global config object
+    // already used for baseAccent below).  Falls back to system locale when the
+    // value is "auto" or absent.  This avoids the Main.qml binding chain which
+    // can silently stay at the default when the chain breaks.
+    property bool is12Hour: {
+        var fmt = (config.clockFormat || "").toString().trim();
+        if (fmt && fmt !== "auto") {
+            // Explicit override: 12h when the format contains AP or ap.
+            return fmt.indexOf("AP") !== -1 || fmt.indexOf("ap") !== -1;
+        }
+        // Auto: mirror the system locale (LC_TIME from /etc/locale.conf).
+        var locFmt = Qt.locale().timeFormat(Locale.ShortFormat);
+        return locFmt.indexOf("AP") !== -1 || locFmt.indexOf("ap") !== -1;
+    }
 
     // Four clock digits as a single string.
     // 24h → "HHmm" e.g. "1345"
@@ -147,8 +159,8 @@ Item {
 
     Component.onCompleted: {
         updateColors();
-        console.log("Pixie SDDM Clock: clockFormat='" + clockFormat
-                    + "' is12Hour=" + is12Hour + " upperAP=" + upperAP);
+        console.log("Pixie SDDM Clock: raw config.clockFormat='"
+                    + config.clockFormat + "' resolved is12Hour=" + is12Hour);
     }
 
 
