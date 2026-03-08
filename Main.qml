@@ -234,8 +234,14 @@ Rectangle {
                 colorExtractor.processed = false;
                 colorDelay.start();
             } else if (bgCurrent.status === Image.Error) {
-                // No background asset — skip extraction, show UI with default accent.
-                colorExtractor.processed = true;
+                // Per-user background missing — fall back to the theme default.
+                var fallback = Qt.resolvedUrl(config.background);
+                if (bgCurrent.source.toString() !== fallback.toString()) {
+                    bgCurrent.source = fallback;
+                } else {
+                    // Even the default is missing — skip extraction, show UI with default accent.
+                    colorExtractor.processed = true;
+                }
             }
         }
     }
