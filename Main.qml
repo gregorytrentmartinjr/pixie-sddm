@@ -395,6 +395,15 @@ Rectangle {
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
         
+        // DEBUG — remove once clock format is confirmed working
+        Text {
+            text: "cfg=" + config.clockFormat + " | locale=" + Qt.locale().timeFormat(Locale.ShortFormat) + " | 12h=" + mainClock.is12Hour
+            color: "white"
+            font.pixelSize: 14
+            opacity: 0.7
+            anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 60 }
+        }
+
         Text {
             text: "Press any key to unlock"
             color: config.textColor
