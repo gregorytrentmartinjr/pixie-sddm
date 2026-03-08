@@ -28,9 +28,7 @@ Item {
     property int _tick: 0
 
     // 12h mode when the format string contains AP or ap.
-    // indexOf is more flexible than exact string equality and tolerates any spacing.
     property bool is12Hour: clockFormat.indexOf("AP") !== -1 || clockFormat.indexOf("ap") !== -1
-    property bool upperAP:  clockFormat.indexOf("AP") !== -1
 
     // Four clock digits as a single string.
     // 24h → "HHmm" e.g. "1345"
@@ -39,16 +37,10 @@ Item {
     property string timeStr: {
         var _ = _tick;   // reactive dependency: re-evaluate every second
         if (is12Hour) {
-            var raw = Qt.formatTime(new Date(), upperAP ? "hh:mm AP" : "hh:mm ap");
+            var raw = Qt.formatTime(new Date(), "hh:mm AP");
             return raw.charAt(0) + raw.charAt(1) + raw.charAt(3) + raw.charAt(4);
         }
         return Qt.formatTime(new Date(), "HHmm");
-    }
-
-    property string ampmStr: {
-        var _ = _tick;
-        if (!is12Hour) return "";
-        return Qt.formatTime(new Date(), upperAP ? "AP" : "ap");
     }
 
 
@@ -215,18 +207,7 @@ Item {
             }
         }
 
-        // AM/PM indicator — only rendered in 12-hour mode
-        Text {
-            visible: clock.is12Hour
-            text: clock.ampmStr
-            color: clock.smartMinutesColor
-            font.pixelSize: 32
-            font.family: clock.fontFamily
-            font.weight: Font.Medium
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 8
-            antialiasing: true
-        }
+
     }
 
     // Increment _tick every second. timeStr and ampmStr have _tick as a
