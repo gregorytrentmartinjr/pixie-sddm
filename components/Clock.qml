@@ -55,6 +55,11 @@ Item {
         return Qt.formatTime(new Date(), "HHmm");
     }
 
+    property string ampmStr: {
+        var _ = _tick;
+        return is12Hour ? Qt.formatTime(new Date(), "AP") : "";
+    }
+
 
 
     // This property automatically converts the hex string from config to a valid color object
@@ -219,6 +224,23 @@ Item {
             }
         }
 
+        // AM/PM indicator – only visible in 12-hour mode
+        Item {
+            visible: clock.is12Hour
+            width: 60
+            height: 270   // matches the effective height of the digit columns (200+200-130)
+            Text {
+                text: clock.ampmStr
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 18
+                color: clock.smartMinutesColor
+                font.pixelSize: 48
+                font.family: clock.fontFamily
+                font.weight: Font.Medium
+                antialiasing: true
+            }
+        }
 
     }
 
