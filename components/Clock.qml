@@ -227,15 +227,16 @@ Item {
         // AM/PM indicator – only visible in 12-hour mode
         Item {
             visible: clock.is12Hour
-            width: 60
+            width: 100
             height: 270   // matches the effective height of the digit columns (200+200-130)
+            clip: false
             Text {
                 text: clock.ampmStr
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 18
+                anchors.bottomMargin: 10
                 color: clock.smartMinutesColor
-                font.pixelSize: 48
+                font.pixelSize: 56
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
                 antialiasing: true
