@@ -16,7 +16,15 @@ Item {
 
     property string fontFamily: "Google Sans Flex Freeze"
 
+    // Clock format from theme.conf – matches OS quickshell values:
+    //   "hh:mm"   = 24-hour
+    //   "h:mm AP" = 12-hour AM/PM
+    //   "h:mm ap" = 12-hour am/pm
+    property string clockFormat: "hh:mm"
 
+    // Derived helpers
+    property bool is12Hour: clockFormat !== "hh:mm"
+    property bool upperAP: clockFormat === "h:mm AP"
 
     // This property automatically converts the hex string from config to a valid color object
 
@@ -33,8 +41,8 @@ Item {
 
 
     // Helper to get individual digits for perfect alignment
-
-    property string timeStr: Qt.formatTime(new Date(), "HHmm")
+    property string timeStr: Qt.formatTime(new Date(), is12Hour ? "hhmm" : "HHmm")
+    property string ampmStr: is12Hour ? Qt.formatTime(new Date(), upperAP ? "AP" : "ap") : ""
 
 
 
@@ -44,7 +52,7 @@ Item {
 
         var base = clock.baseAccent;
 
-        
+
 
         // Debug check (will show in sddm-greeter output)
 
@@ -52,69 +60,69 @@ Item {
 
 
 
-        // Material 3 logic: 
+        // Material 3 logic:
 
         // Hours = Vibrant/Deep version of accent
 
         // Minutes = Soft/Pastel version of accent
 
-        
+
 
                 if (base.hsvValue < 0.3) {
 
-        
+
 
                     // Extremely dark: Shift towards light theme for clock
 
-        
+
 
                     clock.smartHoursColor = Qt.hsva(base.hsvHue, 0.6, 0.9, 1.0);
 
-        
+
 
                     clock.smartMinutesColor = Qt.hsva(base.hsvHue, 0.35, 0.85, 1.0);
 
-        
+
 
                 } else if (base.hsvValue > 0.8 && base.hsvSaturation < 0.2) {
 
-        
+
 
                     // Very bright/white-ish: Darken slightly to keep it readable
 
-        
+
 
                     clock.smartHoursColor = Qt.hsva(base.hsvHue, 0.8, 0.7, 1.0);
 
-        
+
 
                     clock.smartMinutesColor = Qt.hsva(base.hsvHue, 0.5, 0.75, 1.0);
 
-        
+
 
                         } else {
 
-        
+
 
                             // Standard Range:
 
-        
+
 
                             // Hours: Bold & Vibrant
 
-        
+
 
                             clock.smartHoursColor = Qt.hsva(base.hsvHue, Math.min(1.0, base.hsvSaturation * 1.3), 0.95, 1.0);
 
-        
+
 
                             // Minutes: Middle ground - brighter than before, but still distinctly tinted
 
-        
+
 
                             clock.smartMinutesColor = Qt.hsva(base.hsvHue, Math.min(1.0, base.hsvSaturation * 0.75), 0.92, 1.0);
 
-        
+
 
                         }
 
@@ -130,8 +138,7 @@ Item {
 
     Row {
         anchors.centerIn: parent
-        spacing: 0 // Resetting horizontal gap
- // Adjust this for horizontal gap between HH and mm columns
+        spacing: 0
 
         // First Column: Tens digit of Hour over Tens digit of Minute
         Column {
@@ -142,7 +149,7 @@ Item {
                 font.pixelSize: 200
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 130 // Ensures digit 1 and digit 3 are centered in same space
+                width: 130
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
@@ -182,6 +189,19 @@ Item {
                 antialiasing: true
             }
         }
+
+        // AM/PM indicator (only visible in 12-hour mode)
+        Text {
+            visible: clock.is12Hour
+            text: clock.ampmStr
+            color: clock.smartMinutesColor
+            font.pixelSize: 32
+            font.family: clock.fontFamily
+            font.weight: Font.Medium
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 8
+            antialiasing: true
+        }
     }
 
     Timer {
@@ -189,7 +209,8 @@ Item {
         running: true
         repeat: true
         onTriggered: {
-            clock.timeStr = Qt.formatTime(new Date(), "HHmm")
+            clock.timeStr = Qt.formatTime(new Date(), clock.is12Hour ? "hhmm" : "HHmm")
+            clock.ampmStr = clock.is12Hour ? Qt.formatTime(new Date(), clock.upperAP ? "AP" : "ap") : ""
         }
     }
 }

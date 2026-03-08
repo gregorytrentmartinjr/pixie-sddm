@@ -367,6 +367,7 @@ Rectangle {
             backgroundSource: bgCurrent.source
             baseAccent: container.extractedAccent
             fontFamily: config.fontFamily
+            clockFormat: config.clockFormat || "hh:mm"
             opacity: colorExtractor.processed ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
