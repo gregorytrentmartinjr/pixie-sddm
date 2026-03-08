@@ -34,12 +34,12 @@ Item {
     property bool is12Hour: {
         var fmt = (config.clockFormat || "").toString().trim();
         if (fmt && fmt !== "auto") {
-            // Explicit override: 12h when the format contains AP or ap.
-            return fmt.indexOf("AP") !== -1 || fmt.indexOf("ap") !== -1;
+            // Explicit override: 12h when the format contains AP/ap (case-insensitive).
+            return fmt.toUpperCase().indexOf("AP") !== -1;
         }
         // Auto: mirror the system locale (LC_TIME from /etc/locale.conf).
         var locFmt = Qt.locale().timeFormat(Locale.ShortFormat);
-        return locFmt.indexOf("AP") !== -1 || locFmt.indexOf("ap") !== -1;
+        return locFmt.toUpperCase().indexOf("AP") !== -1;
     }
 
     // Four clock digits as a single string.
