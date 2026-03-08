@@ -17,14 +17,41 @@ Item {
     property string fontFamily: "Google Sans Flex Freeze"
 
     // Clock format from theme.conf – matches OS quickshell values:
-    //   "hh:mm"   = 24-hour
+    //   "hh:mm"   = 24-hour (default)
     //   "h:mm AP" = 12-hour AM/PM
     //   "h:mm ap" = 12-hour am/pm
     property string clockFormat: "hh:mm"
 
-    // Derived helpers
-    property bool is12Hour: clockFormat !== "hh:mm"
-    property bool upperAP: clockFormat === "h:mm AP"
+    // Tick increments every second so that time bindings re-evaluate automatically.
+    // Using a reactive counter avoids the common QML pitfall where an imperative
+    // assignment (clock.x = ...) permanently breaks the declarative binding on x.
+    property int _tick: 0
+
+    // 12h mode when the format string contains AP or ap.
+    // indexOf is more flexible than exact string equality and tolerates any spacing.
+    property bool is12Hour: clockFormat.indexOf("AP") !== -1 || clockFormat.indexOf("ap") !== -1
+    property bool upperAP:  clockFormat.indexOf("AP") !== -1
+
+    // Four clock digits as a single string.
+    // 24h → "HHmm" e.g. "1345"
+    // 12h → extract from "hh:mm AP" (e.g. "03:45 PM") at positions 0,1,3,4
+    //        Qt only gives 12h hours when AP/ap is in the same format string.
+    property string timeStr: {
+        var _ = _tick;   // reactive dependency: re-evaluate every second
+        if (is12Hour) {
+            var raw = Qt.formatTime(new Date(), upperAP ? "hh:mm AP" : "hh:mm ap");
+            return raw.charAt(0) + raw.charAt(1) + raw.charAt(3) + raw.charAt(4);
+        }
+        return Qt.formatTime(new Date(), "HHmm");
+    }
+
+    property string ampmStr: {
+        var _ = _tick;
+        if (!is12Hour) return "";
+        return Qt.formatTime(new Date(), upperAP ? "AP" : "ap");
+    }
+
+
 
     // This property automatically converts the hex string from config to a valid color object
 
@@ -37,21 +64,6 @@ Item {
     property color smartHoursColor: defaultHoursColor
 
     property color smartMinutesColor: defaultMinutesColor
-
-
-
-    // Helper to get individual digits for perfect alignment.
-    // In Qt, "hh" only yields 12-hour values when the same format string also
-    // contains "AP"/"ap" — without it, "hh" is 24-hour.  So we use
-    // "hh:mm AP" (→ "03:45 PM") and extract characters by position.
-    property string _raw: Qt.formatTime(new Date(),
-                              is12Hour ? (upperAP ? "hh:mm AP" : "hh:mm ap") : "HHmm")
-    // 24h: _raw is "HHmm" e.g. "1345"          → chars 0-3
-    // 12h: _raw is "hh:mm AP" e.g. "03:45 PM"  → digits at 0,1,3,4; AP at 6+
-    property string timeStr: is12Hour
-                               ? (_raw.charAt(0) + _raw.charAt(1) + _raw.charAt(3) + _raw.charAt(4))
-                               : _raw
-    property string ampmStr: is12Hour ? _raw.substring(6).trim() : ""
 
 
 
@@ -151,7 +163,7 @@ Item {
 
         // First Column: Tens digit of Hour over Tens digit of Minute
         Column {
-            spacing: -130 // Ultra-compact vertical overlap
+            spacing: -130
             Text {
                 text: clock.timeStr.charAt(0)
                 color: clock.smartHoursColor
@@ -199,7 +211,7 @@ Item {
             }
         }
 
-        // AM/PM indicator (only visible in 12-hour mode)
+        // AM/PM indicator — only rendered in 12-hour mode
         Text {
             visible: clock.is12Hour
             text: clock.ampmStr
@@ -213,13 +225,12 @@ Item {
         }
     }
 
+    // Increment _tick every second. timeStr and ampmStr have _tick as a
+    // reactive dependency, so they re-evaluate without any binding being broken.
     Timer {
         interval: 1000
         running: true
         repeat: true
-        onTriggered: {
-            clock._raw = Qt.formatTime(new Date(),
-                             clock.is12Hour ? (clock.upperAP ? "hh:mm AP" : "hh:mm ap") : "HHmm");
-        }
+        onTriggered: clock._tick++
     }
 }
