@@ -382,7 +382,15 @@ Rectangle {
             backgroundSource: bgCurrent.source
             baseAccent: container.extractedAccent
             fontFamily: config.fontFamily
-            clockFormat: config.clockFormat || "hh:mm"
+            clockFormat: {
+                var cfg = (config.clockFormat || "").toString().trim();
+                // Explicit override in theme.conf wins.
+                if (cfg && cfg !== "auto") return cfg;
+                // Auto: mirror the system locale's short time format.
+                // Qt.locale().timeFormat() respects LC_TIME set via localectl,
+                // which is the same OS-level setting quickshell reads.
+                return Qt.locale().timeFormat(Locale.ShortFormat);
+            }
             opacity: colorExtractor.processed ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }

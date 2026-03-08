@@ -153,7 +153,11 @@ Item {
 
     onBaseAccentChanged: updateColors()
 
-    Component.onCompleted: updateColors()
+    Component.onCompleted: {
+        updateColors();
+        console.log("Pixie SDDM Clock: clockFormat='" + clockFormat
+                    + "' is12Hour=" + is12Hour + " upperAP=" + upperAP);
+    }
 
 
 
