@@ -405,6 +405,8 @@ Rectangle {
             text: "Press any key to unlock"
             color: config.textColor
             font.pixelSize: 16
+            font.family: config.fontFamily
+            font.weight: Font.Medium
             anchors {
                 bottom: parent.bottom
                 horizontalCenter: parent.horizontalCenter
@@ -619,6 +621,7 @@ Rectangle {
                             text: "󰟀" 
                             color: container.extractedAccent
                             font.pixelSize: 16
+                            font.family: config.fontFamily
                         }
                         Text {
                             text: {
@@ -635,6 +638,7 @@ Rectangle {
                             }
                             color: "white"
                             font.pixelSize: 13
+                            font.family: config.fontFamily
                             font.weight: Font.Medium
                         }
                     }
@@ -654,6 +658,8 @@ Rectangle {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     font.pixelSize: 18
+                    font.family: config.fontFamily
+                    font.weight: Font.Medium
                     color: "white"
                     focus: loginState.visible
                     enabled: !container.isLoggingIn
@@ -670,6 +676,8 @@ Rectangle {
                         text: "Enter Password"
                         color: "gray"
                         font.pixelSize: 16
+                        font.family: config.fontFamily
+                        font.weight: Font.Medium
                         visible: !parent.text
                         anchors.centerIn: parent
                         opacity: 0.5
@@ -894,6 +902,7 @@ Rectangle {
                         text: "󰟀"
                         color: isCurrent ? container.extractedAccent : "gray"
                         font.pixelSize: 16
+                        font.family: config.fontFamily
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -907,6 +916,7 @@ Rectangle {
                         color: isCurrent ? "white" : "#AAAAAA"
                         font.pixelSize: 14
                         font.family: config.fontFamily
+                        font.weight: Font.Medium
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         rightPadding: 60
