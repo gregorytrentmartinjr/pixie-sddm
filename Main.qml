@@ -234,9 +234,16 @@ Rectangle {
                 colorExtractor.processed = false;
                 colorDelay.start();
             } else if (bgCurrent.status === Image.Error) {
-                // Per-user background missing — fall back to the theme default.
-                var fallback = Qt.resolvedUrl(config.background);
-                if (bgCurrent.source.toString() !== fallback.toString()) {
+                // Per-user background missing — try .png / .webp before
+                // falling back to the theme default. Mirrors bgNext's chain
+                // so the initial load isn't restricted to .jpg.
+                var src = bgCurrent.source.toString();
+                var fallback = Qt.resolvedUrl(config.background).toString();
+                if (src !== fallback && src.match(/\.jpg$/i)) {
+                    bgCurrent.source = src.replace(/\.jpg$/i, ".png");
+                } else if (src !== fallback && src.match(/\.png$/i)) {
+                    bgCurrent.source = src.replace(/\.png$/i, ".webp");
+                } else if (src !== fallback) {
                     bgCurrent.source = fallback;
                 } else {
                     // Even the default is missing — skip extraction, show UI with default accent.

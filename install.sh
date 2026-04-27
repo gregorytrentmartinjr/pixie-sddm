@@ -54,7 +54,15 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # 5. INSTALLATION
+# Preserve user-dropped per-user wallpapers across re-installs. The repo
+# only ships an empty assets/backgrounds/ (with a .gitkeep), so a naive
+# rm -rf wipes any <username>.jpg files the user added under there.
+BG_BACKUP=""
 if [ -d "${THEME_DIR}" ]; then
+    if [ -d "${THEME_DIR}/assets/backgrounds" ]; then
+        BG_BACKUP=$(mktemp -d)
+        cp -a "${THEME_DIR}/assets/backgrounds/." "${BG_BACKUP}/" 2>/dev/null || true
+    fi
     echo -e "${BLUE}==>${NC} Cleaning old version..."
     rm -rf "${THEME_DIR}"
 fi
@@ -63,6 +71,13 @@ echo -e "${BLUE}==>${NC} Installing Pixie (Qt${SYSTEM_QT}) to ${THEME_DIR}..."
 mkdir -p "${THEME_DIR}"
 cp -r assets components Main.qml metadata.desktop theme.conf LICENSE "${THEME_DIR}/"
 chmod -R 755 "${THEME_DIR}"
+
+if [ -n "${BG_BACKUP}" ] && [ -d "${BG_BACKUP}" ]; then
+    echo -e "${BLUE}==>${NC} Restoring per-user wallpapers..."
+    mkdir -p "${THEME_DIR}/assets/backgrounds"
+    cp -a "${BG_BACKUP}/." "${THEME_DIR}/assets/backgrounds/" 2>/dev/null || true
+    rm -rf "${BG_BACKUP}"
+fi
 
 echo -e "${GREEN}Done!${NC} Pixie SDDM is now installed."
 
