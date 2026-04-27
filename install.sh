@@ -89,6 +89,55 @@ echo -e "${GREEN}Done!${NC} Pixie SDDM is now installed."
 echo -e "${BLUE}==>${NC} Creating state directory /var/lib/pixie-sddm..."
 install -d -m 1777 /var/lib/pixie-sddm
 
+# Helper that upserts a key=value line into state.conf. User shells (e.g.
+# quickshell's BarConfig) call this to push individual keys without
+# clobbering the others. Installed system-wide so it's on $PATH for any user.
+echo -e "${BLUE}==>${NC} Installing state-update helper /usr/local/bin/pixie-sddm-set-state..."
+cat > /usr/local/bin/pixie-sddm-set-state <<'HELPER_EOF'
+#!/bin/sh
+# pixie-sddm-set-state KEY VALUE
+# Upserts a single key=value line in /var/lib/pixie-sddm/state.conf so the
+# Pixie SDDM theme can pick it up at the next greeter start.
+
+set -eu
+
+if [ "$#" -lt 2 ]; then
+    echo "usage: $0 <key> <value>" >&2
+    exit 2
+fi
+
+KEY=$1
+VAL=$2
+STATE=/var/lib/pixie-sddm/state.conf
+DIR=$(dirname "$STATE")
+
+# Silently no-op when Pixie SDDM isn't installed.
+[ -d "$DIR" ] || exit 0
+
+# Restrict KEY to identifier chars so it's safe to use as a literal grep pattern.
+case "$KEY" in
+    *[!A-Za-z0-9_]*) echo "invalid key: $KEY" >&2; exit 2 ;;
+esac
+
+TMP=$(mktemp 2>/dev/null) || exit 0
+{
+    [ -f "$STATE" ] && grep -v "^${KEY}=" "$STATE" || true
+    printf '%s=%s\n' "$KEY" "$VAL"
+} > "$TMP"
+
+# Truncate-overwrite when we can already write the existing file (preserves
+# the inode and avoids the sticky-bit unlink restriction on /var/lib/pixie-sddm).
+# Otherwise rename in, falling back to a copy if rename is blocked.
+if [ -f "$STATE" ] && [ -w "$STATE" ]; then
+    cat "$TMP" > "$STATE"
+    rm -f "$TMP"
+else
+    mv "$TMP" "$STATE" 2>/dev/null || { cat "$TMP" > "$STATE"; rm -f "$TMP"; }
+fi
+chmod 666 "$STATE" 2>/dev/null || true
+HELPER_EOF
+chmod 755 /usr/local/bin/pixie-sddm-set-state
+
 # Qt6 disables file:// reads via XMLHttpRequest by default. The Clock component
 # uses XHR to load /var/lib/pixie-sddm/state.conf, so the greeter needs the
 # QML_XHR_ALLOW_FILE_READ=1 env var. A systemd drop-in is the least intrusive
@@ -117,11 +166,16 @@ if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
                   | head -1)
         fi
         if [ -n "$FMT" ]; then
-            STATE_FILE=/var/lib/pixie-sddm/state.conf
-            printf 'clockFormat=%s\n' "$FMT" > "$STATE_FILE"
-            chmod 644 "$STATE_FILE"
-            chown "$SUDO_USER" "$STATE_FILE" 2>/dev/null || true
+            pixie-sddm-set-state clockFormat "$FMT" 2>/dev/null || true
             echo -e "${BLUE}==>${NC} Seeded clockFormat=${GREEN}${FMT}${NC} from quickshell config."
+        fi
+        DFMT=$(jq -r '.options.time.dateFormat // empty' "$USER_CONFIG" 2>/dev/null \
+               || awk '/"time"[[:space:]]*:/,/}/' "$USER_CONFIG" \
+                  | sed -nE 's/.*"dateFormat"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' \
+                  | head -1)
+        if [ -n "$DFMT" ]; then
+            pixie-sddm-set-state dateFormat "$DFMT" 2>/dev/null || true
+            echo -e "${BLUE}==>${NC} Seeded dateFormat=${GREEN}${DFMT}${NC} from quickshell config."
         fi
     fi
 fi

@@ -22,7 +22,28 @@ Rectangle {
     property int sessionIndex: 0
     property bool isLoggingIn: false
 
+    // Synced from /var/lib/pixie-sddm/state.conf (written by quickshell BarConfig).
+    // Empty string when the file is absent or doesn't carry the key — the date
+    // text falls back to month-first in that case.
+    property string syncedDateFormat: ""
+
+    function loadSyncedDateFormat() {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            if (xhr.status !== 0 && xhr.status !== 200) return;
+            var text = xhr.responseText || "";
+            var m = text.match(/^[ \t]*dateFormat[ \t]*=[ \t]*(.*?)[ \t\r]*$/m);
+            if (m && m[1]) container.syncedDateFormat = m[1];
+        };
+        try {
+            xhr.open("GET", "file:///var/lib/pixie-sddm/state.conf");
+            xhr.send();
+        } catch (e) { /* ignore — file missing or XHR file-read disabled */ }
+    }
+
     Component.onCompleted: {
+        loadSyncedDateFormat();
         if (typeof userModel !== "undefined" && userModel.lastIndex >= 0) userIndex = userModel.lastIndex;
         if (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) sessionIndex = sessionModel.lastIndex;
         // onUserIndexChanged won't fire if userIndex stayed at 0 (single-user systems),
@@ -368,7 +389,19 @@ Rectangle {
 
     Text {
         id: dateText
-        text: Qt.formatDateTime(new Date(), "dddd, MMMM d")
+        // Order follows the quickshell BarConfig date-format choice:
+        //   day-first  ("dd/MM"-style) → "Monday, 27 Apr"
+        //   month-first (default)      → "Monday, Apr 27"
+        text: {
+            var fmt = container.syncedDateFormat;
+            if (fmt) {
+                var ddIdx = fmt.indexOf("dd");
+                var mmIdx = fmt.indexOf("MM");
+                if (ddIdx >= 0 && mmIdx >= 0 && ddIdx < mmIdx)
+                    return Qt.formatDateTime(new Date(), "dddd, d MMM");
+            }
+            return Qt.formatDateTime(new Date(), "dddd, MMM d");
+        }
         color: container.extractedAccent
         font.pixelSize: 44
         font.family: config.fontFamily
