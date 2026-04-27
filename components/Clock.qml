@@ -1,6 +1,9 @@
 /**
  * Pixie SDDM - Clock Component
  * Author: xCaptaiN09
+ *
+ * All sizes scaled 2x from the original spec (digit font, digit-cell width,
+ * vertical overlap spacing, AM/PM container, AM/PM font/margin).
  */
 import QtQuick
 
@@ -176,24 +179,24 @@ Item {
 
         // First Column: Tens digit of Hour over Tens digit of Minute
         Column {
-            spacing: -130
+            spacing: -260
             Text {
                 text: clock.timeStr.charAt(0)
                 color: clock.smartHoursColor
-                font.pixelSize: 200
+                font.pixelSize: 400
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 130
+                width: 260
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
             Text {
                 text: clock.timeStr.charAt(2)
                 color: clock.smartMinutesColor
-                font.pixelSize: 200
+                font.pixelSize: 400
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 130
+                width: 260
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
@@ -201,24 +204,24 @@ Item {
 
         // Second Column: Ones digit of Hour over Ones digit of Minute
         Column {
-            spacing: -130
+            spacing: -260
             Text {
                 text: clock.timeStr.charAt(1)
                 color: clock.smartHoursColor
-                font.pixelSize: 200
+                font.pixelSize: 400
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 130
+                width: 260
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
             Text {
                 text: clock.timeStr.charAt(3)
                 color: clock.smartMinutesColor
-                font.pixelSize: 200
+                font.pixelSize: 400
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 130
+                width: 260
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
@@ -227,15 +230,15 @@ Item {
         // AM/PM indicator – only visible in 12-hour mode
         Item {
             visible: clock.is12Hour
-            width: 60
-            height: 270   // matches the effective height of the digit columns (200+200-130)
+            width: 120
+            height: 540   // matches the effective height of the digit columns (400+400-260)
             Text {
                 text: clock.ampmStr
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 18
+                anchors.bottomMargin: 36
                 color: clock.smartMinutesColor
-                font.pixelSize: 48
+                font.pixelSize: 96
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
                 antialiasing: true

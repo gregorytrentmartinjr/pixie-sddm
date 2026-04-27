@@ -333,8 +333,8 @@ Rectangle {
         anchors {
             top: parent.top
             right: parent.right
-            topMargin: 30
-            rightMargin: 40
+            topMargin: 60
+            rightMargin: 80
         }
         textColor: container.extractedAccent
         z: 100
@@ -363,13 +363,13 @@ Rectangle {
         id: dateText
         text: Qt.formatDateTime(new Date(), "dddd, MMMM d")
         color: container.extractedAccent
-        font.pixelSize: 22
+        font.pixelSize: 44
         font.family: config.fontFamily
         anchors {
             top: parent.top
             left: parent.left
-            topMargin: 50
-            leftMargin: 60
+            topMargin: 100
+            leftMargin: 120
         }
         opacity: colorExtractor.processed ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 300 } }
@@ -404,13 +404,13 @@ Rectangle {
         Text {
             text: "Press any key to unlock"
             color: config.textColor
-            font.pixelSize: 16
+            font.pixelSize: 32
             font.family: config.fontFamily
             font.weight: Font.Medium
             anchors {
                 bottom: parent.bottom
                 horizontalCenter: parent.horizontalCenter
-                bottomMargin: 100
+                bottomMargin: 200
             }
             opacity: 0.5
         }
@@ -446,35 +446,64 @@ Rectangle {
             onStopped: isError = false
         }
 
-        Rectangle {
+        // Centered login UI -- no card background; elements float over the blurred wallpaper.
+        // Kept as `loginCard` so the existing shake animation references still target it.
+        // All children sized 2x the brand spec for a larger on-screen presence.
+        Item {
             id: loginCard
-            width: 380
-            height: 480
+            width: 800
+            height: contentColumn.implicitHeight
             x: (parent.width - width) / 2
             y: (parent.height - height) / 2
-            color: loginState.isError ? "#442222" : "#1A1C18"
-            opacity: 0.7
-            radius: 32
-            
-            Behavior on color { ColorAnimation { duration: 200 } }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 40
-                spacing: 15
+            Column {
+                id: contentColumn
+                width: parent.width
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 48
 
                 Item {
-                    Layout.preferredWidth: 120
-                    Layout.preferredHeight: 120
-                    Layout.alignment: Qt.AlignHCenter
+                    id: avatarItem
+                    width: 272
+                    height: 272
+                    anchors.horizontalCenter: parent.horizontalCenter
 
-                    // Fallback: letter initial when no avatar is available
+                    // True only when AccountsService gives us a real per-user icon.
+                    // Many distros (and SDDM itself) return a default system silhouette
+                    // path under /usr/share/... for users that haven't set anything --
+                    // we filter those out by location so they fall through to the letter.
+                    property bool hasCustomAvatar: {
+                        if (typeof userModel === "undefined" || userModel.count === 0) return false;
+                        var idx = container.userIndex;
+                        if (idx < 0 || idx >= userModel.count) return false;
+                        var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 4);
+                        if (!icon) return false;
+                        var path = icon.toString().trim().toLowerCase();
+                        if (path.length === 0) return false;
+                        // Strip file:// prefix if Qt returned a URL form
+                        if (path.indexOf("file://") === 0) path = path.substring(7);
+                        // Real custom avatars live in well-known per-user locations.
+                        if (path.indexOf("/var/lib/accountsservice/icons/") !== -1) return true;
+                        if (path.indexOf("/home/") !== -1) return true;
+                        // Anything else (e.g. /usr/share/sddm/faces, /usr/share/pixmaps,
+                        // /usr/share/icons) is a system default -- treat as no avatar.
+                        return false;
+                    }
+
+                    // Glass-style avatar circle with letter initial. Shown unless the
+                    // user has a real custom photo that loaded successfully.
                     Rectangle {
                         id: avatarFallback
                         anchors.fill: parent
-                        color: "#2D2F27"
                         radius: width / 2
-                        visible: avatar.status !== Image.Ready
+                        visible: !avatarItem.hasCustomAvatar || avatar.status !== Image.Ready
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
+
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: loginState.isError ? Qt.rgba(1, 0.4, 0.4, 0.20) : Qt.rgba(1, 1, 1, 0.10) }
+                            GradientStop { position: 1.0; color: loginState.isError ? Qt.rgba(1, 0.4, 0.4, 0.06) : Qt.rgba(1, 1, 1, 0.03) }
+                        }
 
                         Text {
                             anchors.centerIn: parent
@@ -487,22 +516,22 @@ Rectangle {
                                 } else {
                                     n = sddm.lastUser ? sddm.lastUser : "U";
                                 }
-                                return n.charAt(0).toUpperCase();
+                                return n.charAt(0).toLowerCase();
                             }
-                            color: container.extractedAccent
-                            font.pixelSize: 48
-                            font.family: fontBold.name
-                            font.weight: Font.Bold
+                            color: "white"
+                            font.pixelSize: 112
+                            font.family: fontMedium.name
+                            font.weight: Font.Medium
                         }
                     }
 
-                    // Circular avatar via Canvas arc clip.
-                    // ctx.drawImage is called with explicit PreserveAspectCrop math so the
-                    // image is centred and cropped, not stretched, before the circle is applied.
+                    // Photo avatar (Canvas + Image). Only used when AccountsService
+                    // provides a real icon path. If empty -> falls through to the
+                    // letter-initial fallback above (no theme-default silhouette).
                     Canvas {
                         id: avatarCanvas
                         anchors.fill: parent
-                        visible: avatar.status === Image.Ready
+                        visible: avatarItem.hasCustomAvatar && avatar.status === Image.Ready
 
                         onPaint: {
                             var ctx = getContext("2d");
@@ -532,21 +561,20 @@ Rectangle {
                             smooth: true
                             visible: false
                             source: {
-                                var s = Qt.resolvedUrl("assets/avatar.jpg");
-                                if (typeof userModel !== "undefined" && userModel.count > 0) {
-                                    var idx = container.userIndex;
-                                    if (idx >= 0 && idx < userModel.count) {
-                                        // IconRole = Qt.UserRole+4 in SDDM 0.18+ (Qt6 era).
-                                        // Qt.UserRole+3 is HomeDirRole and must not be used here.
-                                        // AccountsService icon paths have no file extension, so
-                                        // accept any non-empty string rather than requiring one.
-                                        var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 4);
-                                        if (icon && icon.toString().trim().length > 0) {
-                                            s = Qt.resolvedUrl(icon.toString().trim());
-                                        }
-                                    }
+                                // Only load when AccountsService gives us a real path -- otherwise
+                                // we'd display the theme's default silhouette, which we don't want.
+                                if (typeof userModel === "undefined" || userModel.count === 0) return "";
+                                var idx = container.userIndex;
+                                if (idx < 0 || idx >= userModel.count) return "";
+                                // IconRole = Qt.UserRole+4 in SDDM 0.18+ (Qt6 era).
+                                // Qt.UserRole+3 is HomeDirRole and must not be used here.
+                                // AccountsService icon paths have no file extension, so
+                                // accept any non-empty string rather than requiring one.
+                                var icon = userModel.data(userModel.index(idx, 0), Qt.UserRole + 4);
+                                if (icon && icon.toString().trim().length > 0) {
+                                    return Qt.resolvedUrl(icon.toString().trim());
                                 }
-                                return s;
+                                return "";
                             }
                             onStatusChanged: {
                                 if (status === Image.Ready) avatarCanvas.requestPaint();
@@ -555,17 +583,17 @@ Rectangle {
                     }
                 }
 
+                // Username -- centered, plain text, click to switch user (multi-user systems)
                 Item {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: userNameLabel.width + 40
-                    Layout.preferredHeight: userNameLabel.height + 20
-                    Layout.topMargin: 10
-                    
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: userNameLabel.width + 80
+                    height: userNameLabel.height + 32
+
                     Rectangle {
                         anchors.fill: parent
                         color: "white"
-                        opacity: userClickArea.pressed ? 0.2 : 0
-                        radius: 12
+                        opacity: userClickArea.pressed ? 0.10 : 0
+                        radius: 24
                         Behavior on opacity { NumberAnimation { duration: 100 } }
                     }
 
@@ -586,8 +614,8 @@ Rectangle {
                             return cleanName(sddm.lastUser ? sddm.lastUser : "User");
                         }
                         color: "white"
-                        font.pixelSize: 24
-                        font.weight: Font.Bold
+                        font.pixelSize: 56
+                        font.weight: Font.Medium
                         font.family: config.fontFamily
                     }
 
@@ -596,104 +624,106 @@ Rectangle {
                         anchors.fill: parent
                         onClicked: userPopup.open()
                     }
-                    
-                    scale: userClickArea.pressed ? 0.95 : 1.0
+
+                    scale: userClickArea.pressed ? 0.97 : 1.0
                     Behavior on scale { NumberAnimation { duration: 100 } }
                 }
 
-                Rectangle {
-                    id: sessionPill
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 180
-                    Layout.preferredHeight: 36
-                    color: (sessionClickArea.pressed || sessionPopup.opened) ? "#3D3F37" : "#2D2F27"
-                    radius: 18
-                    border.width: 1
-                    border.color: (sessionClickArea.pressed || sessionPopup.opened) ? container.extractedAccent : "#3D3F37"
-                    
-                    scale: sessionClickArea.pressed ? 0.95 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 100 } }
+                // Password field with embedded submit button
+                Item {
+                    width: 720
+                    height: 112
+                    anchors.horizontalCenter: parent.horizontalCenter
 
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: 8
-                        Text { 
-                            text: "󰟀" 
-                            color: container.extractedAccent
-                            font.pixelSize: 16
-                            font.family: config.fontFamily
-                        }
-                        Text {
-                            text: {
-                                if (typeof sessionModel !== "undefined" && sessionModel.count > 0) {
-                                    var idx = container.sessionIndex;
-                                    var modelIdx = sessionModel.index(idx, 0);
-                                    var n = sessionModel.data(modelIdx, Qt.UserRole + 4);
-                                    var f = sessionModel.data(modelIdx, Qt.UserRole + 2);
-                                    var d = sessionModel.data(modelIdx, Qt.DisplayRole);
-                                    var finalName = n ? n.toString() : (f ? f.toString() : (d ? d.toString() : "Session " + (idx + 1)));
-                                    return cleanName(finalName) + (sessionModel.count > 1 ? " ▾" : "");
-                                }
-                                return "Hyprland";
-                            }
-                            color: "white"
-                            font.pixelSize: 13
-                            font.family: config.fontFamily
-                            font.weight: Font.Medium
-                        }
-                    }
-
-                    MouseArea {
-                        id: sessionClickArea
+                    TextField {
+                        id: passwordField
                         anchors.fill: parent
-                        onClicked: sessionPopup.open()
-                    }
-                }
-
-                Item { Layout.fillHeight: true }
-
-                TextField {
-                    id: passwordField
-                    echoMode: TextInput.Password
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    font.pixelSize: 18
-                    font.family: config.fontFamily
-                    font.weight: Font.Medium
-                    color: "white"
-                    focus: loginState.visible
-                    enabled: !container.isLoggingIn
-                    
-                    background: Rectangle {
-                        color: "#2D2F27"
-                        radius: 16
-                        border.width: parent.activeFocus ? 2 : 0
-                        border.color: container.extractedAccent
-                        opacity: parent.enabled ? 1.0 : 0.5
-                    }
-                    
-                    Text {
-                        text: "Enter Password"
-                        color: "gray"
-                        font.pixelSize: 16
+                        echoMode: TextInput.Password
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 48
+                        rightPadding: 120
+                        font.pixelSize: 30
                         font.family: config.fontFamily
-                        font.weight: Font.Medium
-                        visible: !parent.text
-                        anchors.centerIn: parent
-                        opacity: 0.5
+                        color: "white"
+                        focus: loginState.visible
+                        enabled: !container.isLoggingIn
+                        selectByMouse: true
+
+                        background: Rectangle {
+                            radius: 56
+                            border.width: 0
+                            opacity: parent.enabled ? 1.0 : 0.5
+
+                            // Vertical gradient simulates a recessed/concave glass surface:
+                            // dimmer at the top (shadow from the upper lip), brighter at the
+                            // bottom (catches reflected light) -- reads as inset rather than raised.
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: loginState.isError ? Qt.rgba(1, 0.4, 0.4, 0.06) : Qt.rgba(1, 1, 1, 0.03) }
+                                GradientStop { position: 1.0; color: loginState.isError ? Qt.rgba(1, 0.4, 0.4, 0.20) : Qt.rgba(1, 1, 1, 0.10) }
+                            }
+                        }
+
+                        Text {
+                            text: "Password"
+                            color: Qt.rgba(1, 1, 1, 0.35)
+                            font.pixelSize: 30
+                            font.family: config.fontFamily
+                            visible: !parent.text
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: parent.leftPadding
+                        }
+
+                        onAccepted: container.doLogin()
                     }
 
-                    onAccepted: container.doLogin()
+                    // Submit button -- small circle inside the field's right edge.
+                    // Brand spec: 32px diameter (~57% of field height); scaled 2x to 64px.
+                    Rectangle {
+                        id: submitButton
+                        anchors {
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            rightMargin: 11
+                        }
+                        width: 64
+                        height: 64
+                        radius: width / 2
+                        // Tracks the wallpaper-extracted accent like the rest of the UI.
+                        color: container.isLoggingIn
+                            ? "#3D3F37"
+                            : (submitMouseArea.pressed ? Qt.darker(container.extractedAccent, 1.1) : container.extractedAccent)
+                        opacity: container.isLoggingIn ? 0.5 : 1.0
+
+                        Behavior on color { ColorAnimation { duration: 200 } }
+
+                        // Loading indicator only -- no static arrow when idle.
+                        Text {
+                            anchors.centerIn: parent
+                            text: "⋯"
+                            color: "white"
+                            font.pixelSize: 44
+                            visible: container.isLoggingIn
+                        }
+
+                        MouseArea {
+                            id: submitMouseArea
+                            anchors.fill: parent
+                            enabled: !container.isLoggingIn
+                            onClicked: container.doLogin()
+                        }
+                    }
                 }
 
+                // Num lock indicator -- preserved
                 Text {
                     id: numLockIndicator
                     text: "Num Lock is on"
                     color: container.extractedAccent
-                    font.pixelSize: 14
+                    font.pixelSize: 28
                     font.family: config.fontFamily
                     font.weight: Font.Medium
-                    Layout.alignment: Qt.AlignHCenter
+                    anchors.horizontalCenter: parent.horizontalCenter
                     visible: {
                         if (typeof keyboard !== "undefined" && typeof keyboard.numLock !== "undefined") return keyboard.numLock;
                         return false;
@@ -701,35 +731,70 @@ Rectangle {
                     opacity: visible ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
+            }
+        }
 
-                Item { Layout.fillHeight: true }
+        // Bottom-right: session selector pill -- always visible.
+        // Uses the wallpaper-extracted accent like the submit button.
+        // Click opens the full session popup.
+        Rectangle {
+            id: sessionPill
+            anchors {
+                bottom: parent.bottom
+                right: parent.right
+                bottomMargin: 60
+                rightMargin: 80
+            }
+            width: 360
+            height: 72
+            // Only show when there's a real choice -- a single-session system gets
+            // dropped into that session unconditionally, so the pill is just clutter.
+            visible: (typeof sessionModel !== "undefined") && sessionModel.count > 1
+            color: (sessionClickArea.pressed || sessionPopup.opened)
+                ? Qt.darker(container.extractedAccent, 1.1)
+                : container.extractedAccent
+            radius: 36
+            z: 50
 
-                RoundButton {
-                    id: loginButton
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 64
-                    Layout.preferredHeight: 64
-                    focusPolicy: Qt.NoFocus
-                    enabled: !container.isLoggingIn
-                    
-                    contentItem: Text {
-                        text: container.isLoggingIn ? "⋯" : "→"
-                        color: "white"
-                        font.pixelSize: 32
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+            Behavior on color { ColorAnimation { duration: 200 } }
 
-                    background: Rectangle {
-                        color: container.isLoggingIn ? "#3D3F37" : (loginButton.pressed ? Qt.darker(container.extractedAccent, 1.1) : container.extractedAccent)
-                        radius: 32
-                        opacity: container.isLoggingIn ? 0.5 : 1.0
-                    }
+            scale: sessionClickArea.pressed ? 0.95 : 1.0
+            Behavior on scale { NumberAnimation { duration: 100 } }
 
-                    onClicked: {
-                        container.doLogin();
-                    }
+            RowLayout {
+                anchors.centerIn: parent
+                spacing: 16
+                Text {
+                    text: "󰟀"
+                    // Dark icon on the bright accent fill -- mirrors the submit button.
+                    color: "#1A1C18"
+                    font.pixelSize: 32
+                    font.family: config.fontFamily
                 }
+                Text {
+                    text: {
+                        if (typeof sessionModel !== "undefined" && sessionModel.count > 0) {
+                            var idx = container.sessionIndex;
+                            var modelIdx = sessionModel.index(idx, 0);
+                            var n = sessionModel.data(modelIdx, Qt.UserRole + 4);
+                            var f = sessionModel.data(modelIdx, Qt.UserRole + 2);
+                            var d = sessionModel.data(modelIdx, Qt.DisplayRole);
+                            var finalName = n ? n.toString() : (f ? f.toString() : (d ? d.toString() : "Session " + (idx + 1)));
+                            return cleanName(finalName) + (sessionModel.count > 1 ? " ▾" : "");
+                        }
+                        return "Hyprland";
+                    }
+                    color: "#1A1C18"
+                    font.pixelSize: 26
+                    font.family: config.fontFamily
+                    font.weight: Font.Medium
+                }
+            }
+
+            MouseArea {
+                id: sessionClickArea
+                anchors.fill: parent
+                onClicked: sessionPopup.open()
             }
         }
     }
@@ -753,11 +818,14 @@ Rectangle {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside 
         onOpened: userList.forceActiveFocus()
         background: Rectangle {
-            color: "#1A1C18"
             radius: 24
-            opacity: 0.95
-            border.color: "#3D3F37"
             border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+            // Convex glass: brighter top, darker bottom -- popups appear raised.
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0.12, 0.14, 0.17, 0.92) }
+                GradientStop { position: 1.0; color: Qt.rgba(0.06, 0.08, 0.10, 0.92) }
+            }
         }
         enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200 } }
         exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 200 } }
@@ -776,8 +844,9 @@ Rectangle {
                 height: 40
                 property bool isCurrent: index === userList.currentIndex
                 background: Rectangle {
-                    color: isCurrent ? "#3D3F37" : (hovered ? "#2D2F27" : "transparent")
+                    color: isCurrent ? Qt.rgba(1, 1, 1, 0.10) : (hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                     radius: 12
+                    Behavior on color { ColorAnimation { duration: 150 } }
                     Rectangle {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
@@ -797,7 +866,7 @@ Rectangle {
                         Layout.preferredWidth: 28
                         Layout.preferredHeight: 28
                         Layout.alignment: Qt.AlignVCenter
-                        color: isCurrent ? container.extractedAccent : "#3D3F37"
+                        color: isCurrent ? container.extractedAccent : Qt.rgba(1, 1, 1, 0.10)
                         radius: 14
                         Text {
                             anchors.centerIn: parent
@@ -848,60 +917,67 @@ Rectangle {
 
     Popup {
         id: sessionPopup
-        width: 260
-        height: (typeof sessionModel !== "undefined") ? Math.min(250, sessionModel.count * 50 + 20) : 100
-        x: (parent.width - width) / 2
-        y: (parent.height - height) / 2 + 80
+        width: 360
+        height: (typeof sessionModel !== "undefined") ? Math.min(500, sessionModel.count * 80 + 40) : 200
+        // Anchor above the session pill, right-aligned to it. Coordinates are in
+        // `container` space (the popup's parent), so map the pill's top-right corner
+        // into that space and offset upward by the popup's own height + a small gap.
+        x: sessionPill.x + sessionPill.width - width
+        y: sessionPill.y - height - 16
         modal: true
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         onOpened: sessionList.forceActiveFocus()
         background: Rectangle {
-            color: "#1A1C18"
             radius: 24
-            opacity: 0.95
-            border.color: "#3D3F37"
             border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+            // Convex glass: brighter top, darker bottom -- popups appear raised.
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0.12, 0.14, 0.17, 0.92) }
+                GradientStop { position: 1.0; color: Qt.rgba(0.06, 0.08, 0.10, 0.92) }
+            }
         }
         enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200 } }
         exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 200 } }
         ListView {
             id: sessionList
             anchors.fill: parent
-            anchors.margins: 10
+            anchors.margins: 20
             model: (typeof sessionModel !== "undefined") ? sessionModel : null
-            spacing: 5
+            spacing: 10
             clip: true
             focus: true
             currentIndex: container.sessionIndex
             highlightFollowsCurrentItem: true
             delegate: ItemDelegate {
                 width: parent.width
-                height: 40
+                height: 80
                 property bool isCurrent: index === sessionList.currentIndex
                 background: Rectangle {
-                    color: isCurrent ? "#3D3F37" : (hovered ? "#2D2F27" : "transparent")
-                    radius: 12
+                    color: isCurrent ? Qt.rgba(1, 1, 1, 0.10) : (hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    radius: 24
+                    Behavior on color { ColorAnimation { duration: 150 } }
                     Rectangle {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 8
-                        width: 4
-                        height: isCurrent ? 16 : 0
+                        anchors.leftMargin: 16
+                        width: 8
+                        height: isCurrent ? 32 : 0
                         color: container.extractedAccent
-                        radius: 2
+                        radius: 4
                         Behavior on height { NumberAnimation { duration: 150 } }
                     }
                 }
                 contentItem: RowLayout {
                     anchors.fill: parent
                     spacing: 0
-                    Item { Layout.preferredWidth: 20 }
-                    Text { 
-                        Layout.preferredWidth: 40
+                    Item { Layout.preferredWidth: 40 }
+                    Text {
+                        Layout.preferredWidth: 80
                         text: "󰟀"
                         color: isCurrent ? container.extractedAccent : "gray"
-                        font.pixelSize: 16
+                        font.pixelSize: 32
                         font.family: config.fontFamily
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -914,12 +990,12 @@ Rectangle {
                             return cleanName(n_val ? n_val : f_val);
                         }
                         color: isCurrent ? "white" : "#AAAAAA"
-                        font.pixelSize: 14
+                        font.pixelSize: 28
                         font.family: config.fontFamily
                         font.weight: Font.Medium
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
-                        rightPadding: 60
+                        rightPadding: 120
                         elide: Text.ElideRight
                     }
                 }
