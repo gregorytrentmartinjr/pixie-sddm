@@ -5,6 +5,11 @@
 
 set -e
 
+# All cp/git invocations below use paths relative to the repo, so make
+# sure we're standing in the script's own directory regardless of how
+# it was launched (e.g. `sudo /path/to/install.sh` from $HOME).
+cd "$(dirname "$(readlink -f "$0")")"
+
 THEME_NAME="pixie"
 THEME_DIR="/usr/share/sddm/themes/${THEME_NAME}"
 
