@@ -25,25 +25,25 @@ Item {
     //   "h:mm ap" = 12-hour am/pm
     property string clockFormat: "hh:mm"
 
+    // Format synced from quickshell BarConfig via /var/lib/pixie-sddm/state.conf.
+    // Loaded once at startup; overrides clockFormat from theme.conf when present.
+    property string syncedClockFormat: ""
+
     // Tick increments every second so that time bindings re-evaluate automatically.
     // Using a reactive counter avoids the common QML pitfall where an imperative
     // assignment (clock.x = ...) permanently breaks the declarative binding on x.
     property int _tick: 0
 
-    // 12h detection: read config.clockFormat directly (same global config object
-    // already used for baseAccent below).  Falls back to system locale when the
-    // value is "auto" or absent.  This avoids the Main.qml binding chain which
-    // can silently stay at the default when the chain breaks.
-    property bool is12Hour: {
-        var fmt = (config.clockFormat || "").toString().trim();
-        if (fmt && fmt !== "auto") {
-            // Explicit override: 12h when the format contains AP/ap (case-insensitive).
-            return fmt.toUpperCase().indexOf("AP") !== -1;
-        }
-        // Auto: mirror the system locale (LC_TIME from /etc/locale.conf).
-        var locFmt = Qt.locale().timeFormat(Locale.ShortFormat);
-        return locFmt.toUpperCase().indexOf("AP") !== -1;
+    // Resolved format string. Priority: quickshell-synced > theme.conf > system locale.
+    property string resolvedFormat: {
+        var synced = (syncedClockFormat || "").toString().trim();
+        if (synced && synced !== "auto") return synced;
+        var cfg = (config.clockFormat || "").toString().trim();
+        if (cfg && cfg !== "auto") return cfg;
+        return Qt.locale().timeFormat(Locale.ShortFormat);
     }
+
+    property bool is12Hour: resolvedFormat.toUpperCase().indexOf("AP") !== -1
 
     // Four clock digits as a single string.
     // 24h → "HHmm" e.g. "1345"
@@ -58,9 +58,30 @@ Item {
         return Qt.formatTime(new Date(), "HHmm");
     }
 
+    // AM/PM marker case follows the resolved format: "ap" → "am/pm", "AP" → "AM/PM".
     property string ampmStr: {
         var _ = _tick;
-        return is12Hour ? Qt.formatTime(new Date(), "AP") : "";
+        if (!is12Hour) return "";
+        return resolvedFormat.indexOf("ap") !== -1
+            ? Qt.formatTime(new Date(), "ap")
+            : Qt.formatTime(new Date(), "AP");
+    }
+
+    // Read /var/lib/pixie-sddm/state.conf (written by quickshell BarConfig).
+    // Format is shell-style key=value lines. Silently no-ops if file is absent.
+    function loadSyncedFormat() {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            if (xhr.status !== 0 && xhr.status !== 200) return;
+            var text = xhr.responseText || "";
+            var m = text.match(/^[ \t]*clockFormat[ \t]*=[ \t]*(.*?)[ \t]*$/m);
+            if (m && m[1]) clock.syncedClockFormat = m[1];
+        };
+        try {
+            xhr.open("GET", "file:///var/lib/pixie-sddm/state.conf");
+            xhr.send();
+        } catch (e) { /* ignore — file missing or unreadable */ }
     }
 
 
@@ -166,6 +187,7 @@ Item {
     onBaseAccentChanged: updateColors()
 
     Component.onCompleted: {
+        loadSyncedFormat();
         updateColors();
         console.log("Pixie SDDM Clock: raw config.clockFormat='"
                     + config.clockFormat + "' resolved is12Hour=" + is12Hour);

@@ -66,7 +66,52 @@ chmod -R 755 "${THEME_DIR}"
 
 echo -e "${GREEN}Done!${NC} Pixie SDDM is now installed."
 
-# 6. CONFIGURATION
+# 6. STATE DIRECTORY (for runtime config synced from user shells)
+# /var/lib/pixie-sddm/state.conf carries shell-style key=value lines (e.g.
+# clockFormat=h:mm ap) written by the user's quickshell BarConfig and read
+# by the SDDM theme. Sticky-bit world-writable mirrors /tmp's policy: any
+# user can drop a file, but only the owner can overwrite or delete it.
+echo -e "${BLUE}==>${NC} Creating state directory /var/lib/pixie-sddm..."
+install -d -m 1777 /var/lib/pixie-sddm
+
+# Qt6 disables file:// reads via XMLHttpRequest by default. The Clock component
+# uses XHR to load /var/lib/pixie-sddm/state.conf, so the greeter needs the
+# QML_XHR_ALLOW_FILE_READ=1 env var. A systemd drop-in is the least intrusive
+# way to set it for the running greeter without touching the unit file itself.
+SDDM_OVERRIDE_DIR=/etc/systemd/system/sddm.service.d
+echo -e "${BLUE}==>${NC} Installing systemd drop-in for QML file-read permission..."
+mkdir -p "$SDDM_OVERRIDE_DIR"
+cat > "$SDDM_OVERRIDE_DIR/pixie-qml-xhr.conf" <<'EOF'
+[Service]
+Environment="QML_XHR_ALLOW_FILE_READ=1"
+EOF
+systemctl daemon-reload 2>/dev/null || true
+
+# Bootstrap: seed state.conf from the calling user's quickshell config so the
+# theme reflects the current setting on first boot, before quickshell runs.
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    USER_CONFIG="${USER_HOME}/.config/illogical-impulse/config.json"
+    if [ -r "$USER_CONFIG" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            FMT=$(jq -r '.options.time.format // empty' "$USER_CONFIG" 2>/dev/null)
+        else
+            # Portable fallback: extract the first "format": "<value>" inside the time block.
+            FMT=$(awk '/"time"[[:space:]]*:/,/}/' "$USER_CONFIG" \
+                  | sed -nE 's/.*"format"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' \
+                  | head -1)
+        fi
+        if [ -n "$FMT" ]; then
+            STATE_FILE=/var/lib/pixie-sddm/state.conf
+            printf 'clockFormat=%s\n' "$FMT" > "$STATE_FILE"
+            chmod 644 "$STATE_FILE"
+            chown "$SUDO_USER" "$STATE_FILE" 2>/dev/null || true
+            echo -e "${BLUE}==>${NC} Seeded clockFormat=${GREEN}${FMT}${NC} from quickshell config."
+        fi
+    fi
+fi
+
+# 7. CONFIGURATION
 echo -e ""
 read -p "Apply Pixie as your active theme now? (y/N) " -n 1 -r
 echo
@@ -79,4 +124,4 @@ else
 fi
 
 echo -e ""
-echo -e "Test with: ${BLUE}${GREETER_CMD} --test-mode --theme ${THEME_DIR}${NC}"
+echo -e "Test with: ${BLUE}QML_XHR_ALLOW_FILE_READ=1 ${GREETER_CMD} --test-mode --theme ${THEME_DIR}${NC}"
