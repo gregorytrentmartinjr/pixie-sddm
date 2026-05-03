@@ -76,7 +76,7 @@ Rectangle {
     }
 
     // Returns the background image path for a given user index.
-    // Looks for assets/backgrounds/<username>.jpg (or .png/.webp) then falls back to config.background.
+    // Looks for assets/backgrounds/<username>.png (or .jpg/.webp) then falls back to config.background.
     function getUserBackground(index) {
         if (typeof userModel === "undefined" || userModel.count === 0)
             return config.background;
@@ -86,7 +86,7 @@ Rectangle {
         var nameRole = userModel.data(userModel.index(idx, 0), Qt.UserRole + 1);
         var username = nameRole ? nameRole.toString().trim() : "";
         if (username)
-            return Qt.resolvedUrl("assets/backgrounds/" + username + ".jpg");
+            return Qt.resolvedUrl("assets/backgrounds/" + username + ".png");
         return config.background;
     }
 
@@ -264,15 +264,15 @@ Rectangle {
                 colorExtractor.processed = false;
                 colorDelay.start();
             } else if (bgCurrent.status === Image.Error) {
-                // Per-user background missing — try .png / .webp before
+                // Per-user background missing — try .jpg / .webp before
                 // falling back to the theme default. Mirrors bgNext's chain
-                // so the initial load isn't restricted to .jpg.
+                // so the initial load isn't restricted to .png.
                 var src = bgCurrent.source.toString();
                 var fallback = Qt.resolvedUrl(config.background).toString();
-                if (src !== fallback && src.match(/\.jpg$/i)) {
-                    bgCurrent.source = src.replace(/\.jpg$/i, ".png");
-                } else if (src !== fallback && src.match(/\.png$/i)) {
-                    bgCurrent.source = src.replace(/\.png$/i, ".webp");
+                if (src !== fallback && src.match(/\.png$/i)) {
+                    bgCurrent.source = src.replace(/\.png$/i, ".jpg");
+                } else if (src !== fallback && src.match(/\.jpg$/i)) {
+                    bgCurrent.source = src.replace(/\.jpg$/i, ".webp");
                 } else if (src !== fallback) {
                     bgCurrent.source = fallback;
                 } else {
@@ -313,13 +313,13 @@ Rectangle {
                 if (status === Image.Ready && source !== "") {
                     bgCrossfade.restart();
                 } else if (status === Image.Error) {
-                    // Try .png extension before falling back to the theme default
+                    // Try .jpg extension before falling back to the theme default
                     var src = source.toString();
                     var defaultBg = Qt.resolvedUrl(config.background).toString();
-                    if (src !== defaultBg && src.match(/\.jpg$/i)) {
-                        source = src.replace(/\.jpg$/i, ".png");
-                    } else if (src !== defaultBg && src.match(/\.png$/i)) {
-                        source = src.replace(/\.png$/i, ".webp");
+                    if (src !== defaultBg && src.match(/\.png$/i)) {
+                        source = src.replace(/\.png$/i, ".jpg");
+                    } else if (src !== defaultBg && src.match(/\.jpg$/i)) {
+                        source = src.replace(/\.jpg$/i, ".webp");
                     } else {
                         source = config.background;
                     }

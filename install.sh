@@ -61,7 +61,7 @@ fi
 # 5. INSTALLATION
 # Preserve user-dropped per-user wallpapers across re-installs. The repo
 # only ships an empty assets/backgrounds/ (with a .gitkeep), so a naive
-# rm -rf wipes any <username>.jpg files the user added under there.
+# rm -rf wipes any <username>.<ext> files the user added under there.
 BG_BACKUP=""
 if [ -d "${THEME_DIR}" ]; then
     if [ -d "${THEME_DIR}/assets/backgrounds" ]; then

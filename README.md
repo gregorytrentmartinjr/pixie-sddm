@@ -138,7 +138,7 @@ sddm-greeter --test-mode --theme /usr/share/sddm/themes/pixie
 
 ### Customization
 Edit `theme.conf` or replace assets in `assets/`:
-- **Wallpaper:** Replace `assets/background.jpg`.
+- **Wallpaper:** Replace `assets/default_wallpaper.png`.
 - **Avatar:** Replace `assets/avatar.jpg`.
 
 ## 🤝 Credits
