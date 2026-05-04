@@ -22,6 +22,15 @@ Rectangle {
     property int sessionIndex: 0
     property bool isLoggingIn: false
 
+    // Layout scale. Every hardcoded pixel value below was sized for a 4K
+    // (2160 px tall) screen; we scale them down proportionally for smaller
+    // displays. Capped at 1.0 so 5K/6K screens still show the 4K layout
+    // without unintentionally enlarging UI further. height / 2160 is used
+    // (not Math.min(width/3840, height/2160)) because the layout is
+    // vertically dominated -- ultrawide screens at 2160 px tall should keep
+    // the 4K presentation, not shrink the form.
+    readonly property real uiScale: Math.min(1.0, height / 2160)
+
     // Synced from /var/lib/pixie-sddm/state.conf (written by quickshell BarConfig).
     // Empty string when the file is absent or doesn't carry the key — the date
     // text falls back to month-first in that case.
@@ -361,9 +370,10 @@ Rectangle {
         anchors {
             top: parent.top
             right: parent.right
-            topMargin: 60
-            rightMargin: 80
+            topMargin: 60 * container.uiScale
+            rightMargin: 80 * container.uiScale
         }
+        uiScale: container.uiScale
         textColor: container.extractedAccent
         z: 100
         opacity: colorExtractor.processed ? 1 : 0
@@ -403,13 +413,13 @@ Rectangle {
             return Qt.formatDateTime(new Date(), "dddd, MMM d");
         }
         color: container.extractedAccent
-        font.pixelSize: 44
+        font.pixelSize: 44 * container.uiScale
         font.family: config.fontFamily
         anchors {
             top: parent.top
             left: parent.left
-            topMargin: 100
-            leftMargin: 120
+            topMargin: 100 * container.uiScale
+            leftMargin: 120 * container.uiScale
         }
         opacity: colorExtractor.processed ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 300 } }
@@ -428,6 +438,7 @@ Rectangle {
             backgroundSource: bgCurrent.source
             baseAccent: container.extractedAccent
             fontFamily: config.fontFamily
+            uiScale: container.uiScale
             clockFormat: {
                 var cfg = (config.clockFormat || "").toString().trim();
                 // Explicit override in theme.conf wins.
@@ -444,13 +455,13 @@ Rectangle {
         Text {
             text: "Press any key to unlock"
             color: config.textColor
-            font.pixelSize: 32
+            font.pixelSize: 32 * container.uiScale
             font.family: config.fontFamily
             font.weight: Font.Medium
             anchors {
                 bottom: parent.bottom
                 horizontalCenter: parent.horizontalCenter
-                bottomMargin: 200
+                bottomMargin: 200 * container.uiScale
             }
             opacity: 0.5
         }
@@ -480,9 +491,9 @@ Rectangle {
         SequentialAnimation {
             id: shakeAnimation
             loops: 2
-            PropertyAnimation { target: loginCard; property: "x"; from: (container.width - loginCard.width)/2; to: (container.width - loginCard.width)/2 - 10; duration: 50; easing.type: Easing.InOutQuad }
-            PropertyAnimation { target: loginCard; property: "x"; from: (container.width - loginCard.width)/2 - 10; to: (container.width - loginCard.width)/2 + 10; duration: 50; easing.type: Easing.InOutQuad }
-            PropertyAnimation { target: loginCard; property: "x"; from: (container.width - loginCard.width)/2 + 10; to: (container.width - loginCard.width)/2; duration: 50; easing.type: Easing.InOutQuad }
+            PropertyAnimation { target: loginCard; property: "x"; from: (container.width - loginCard.width)/2; to: (container.width - loginCard.width)/2 - 10 * container.uiScale; duration: 50; easing.type: Easing.InOutQuad }
+            PropertyAnimation { target: loginCard; property: "x"; from: (container.width - loginCard.width)/2 - 10 * container.uiScale; to: (container.width - loginCard.width)/2 + 10 * container.uiScale; duration: 50; easing.type: Easing.InOutQuad }
+            PropertyAnimation { target: loginCard; property: "x"; from: (container.width - loginCard.width)/2 + 10 * container.uiScale; to: (container.width - loginCard.width)/2; duration: 50; easing.type: Easing.InOutQuad }
             onStopped: isError = false
         }
 
@@ -491,7 +502,7 @@ Rectangle {
         // All children sized 2x the brand spec for a larger on-screen presence.
         Item {
             id: loginCard
-            width: 800
+            width: 800 * container.uiScale
             height: contentColumn.implicitHeight
             x: (parent.width - width) / 2
             y: (parent.height - height) / 2
@@ -500,12 +511,12 @@ Rectangle {
                 id: contentColumn
                 width: parent.width
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 48
+                spacing: 48 * container.uiScale
 
                 Item {
                     id: avatarItem
-                    width: 272
-                    height: 272
+                    width: 272 * container.uiScale
+                    height: 272 * container.uiScale
                     anchors.horizontalCenter: parent.horizontalCenter
 
                     // True only when AccountsService gives us a real per-user icon.
@@ -559,7 +570,7 @@ Rectangle {
                                 return n.charAt(0).toLowerCase();
                             }
                             color: "white"
-                            font.pixelSize: 112
+                            font.pixelSize: 112 * container.uiScale
                             font.family: fontMedium.name
                             font.weight: Font.Medium
                         }
@@ -626,14 +637,14 @@ Rectangle {
                 // Username -- centered, plain text, click to switch user (multi-user systems)
                 Item {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: userNameLabel.width + 80
-                    height: userNameLabel.height + 32
+                    width: userNameLabel.width + 80 * container.uiScale
+                    height: userNameLabel.height + 32 * container.uiScale
 
                     Rectangle {
                         anchors.fill: parent
                         color: "white"
                         opacity: userClickArea.pressed ? 0.10 : 0
-                        radius: 24
+                        radius: 24 * container.uiScale
                         Behavior on opacity { NumberAnimation { duration: 100 } }
                     }
 
@@ -654,7 +665,7 @@ Rectangle {
                             return cleanName(sddm.lastUser ? sddm.lastUser : "User");
                         }
                         color: "white"
-                        font.pixelSize: 56
+                        font.pixelSize: 56 * container.uiScale
                         font.weight: Font.Medium
                         font.family: config.fontFamily
                     }
@@ -671,8 +682,8 @@ Rectangle {
 
                 // Password field with embedded submit button
                 Item {
-                    width: 720
-                    height: 112
+                    width: 720 * container.uiScale
+                    height: 112 * container.uiScale
                     anchors.horizontalCenter: parent.horizontalCenter
 
                     TextField {
@@ -681,9 +692,9 @@ Rectangle {
                         echoMode: TextInput.Password
                         horizontalAlignment: Text.AlignLeft
                         verticalAlignment: Text.AlignVCenter
-                        leftPadding: 48
-                        rightPadding: 120
-                        font.pixelSize: 30
+                        leftPadding: 48 * container.uiScale
+                        rightPadding: 120 * container.uiScale
+                        font.pixelSize: 30 * container.uiScale
                         font.family: config.fontFamily
                         color: "white"
                         focus: loginState.visible
@@ -691,7 +702,7 @@ Rectangle {
                         selectByMouse: true
 
                         background: Rectangle {
-                            radius: 56
+                            radius: 56 * container.uiScale
                             border.width: 0
                             opacity: parent.enabled ? 1.0 : 0.5
 
@@ -707,7 +718,7 @@ Rectangle {
                         Text {
                             text: "Password"
                             color: Qt.rgba(1, 1, 1, 0.35)
-                            font.pixelSize: 30
+                            font.pixelSize: 30 * container.uiScale
                             font.family: config.fontFamily
                             visible: !parent.text
                             anchors.verticalCenter: parent.verticalCenter
@@ -724,10 +735,10 @@ Rectangle {
                         anchors {
                             right: parent.right
                             verticalCenter: parent.verticalCenter
-                            rightMargin: 11
+                            rightMargin: 11 * container.uiScale
                         }
-                        width: 64
-                        height: 64
+                        width: 64 * container.uiScale
+                        height: 64 * container.uiScale
                         radius: width / 2
                         // Tracks the wallpaper-extracted accent like the rest of the UI.
                         color: container.isLoggingIn
@@ -742,7 +753,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: "⋯"
                             color: "white"
-                            font.pixelSize: 44
+                            font.pixelSize: 44 * container.uiScale
                             visible: container.isLoggingIn
                         }
 
@@ -760,7 +771,7 @@ Rectangle {
                     id: numLockIndicator
                     text: "Num Lock is on"
                     color: container.extractedAccent
-                    font.pixelSize: 28
+                    font.pixelSize: 28 * container.uiScale
                     font.family: config.fontFamily
                     font.weight: Font.Medium
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -782,18 +793,18 @@ Rectangle {
             anchors {
                 bottom: parent.bottom
                 right: parent.right
-                bottomMargin: 60
-                rightMargin: 80
+                bottomMargin: 60 * container.uiScale
+                rightMargin: 80 * container.uiScale
             }
-            width: 360
-            height: 72
+            width: 360 * container.uiScale
+            height: 72 * container.uiScale
             // Only show when there's a real choice -- a single-session system gets
             // dropped into that session unconditionally, so the pill is just clutter.
             visible: (typeof sessionModel !== "undefined") && sessionModel.count > 1
             color: (sessionClickArea.pressed || sessionPopup.opened)
                 ? Qt.darker(container.extractedAccent, 1.1)
                 : container.extractedAccent
-            radius: 36
+            radius: 36 * container.uiScale
             z: 50
 
             Behavior on color { ColorAnimation { duration: 200 } }
@@ -803,12 +814,12 @@ Rectangle {
 
             RowLayout {
                 anchors.centerIn: parent
-                spacing: 16
+                spacing: 16 * container.uiScale
                 Text {
                     text: "󰟀"
                     // Dark icon on the bright accent fill -- mirrors the submit button.
                     color: "#1A1C18"
-                    font.pixelSize: 32
+                    font.pixelSize: 32 * container.uiScale
                     font.family: config.fontFamily
                 }
                 Text {
@@ -825,7 +836,7 @@ Rectangle {
                         return "Hyprland";
                     }
                     color: "#1A1C18"
-                    font.pixelSize: 26
+                    font.pixelSize: 26 * container.uiScale
                     font.family: config.fontFamily
                     font.weight: Font.Medium
                 }
@@ -849,16 +860,16 @@ Rectangle {
 
     Popup {
         id: userPopup
-        width: 260
-        height: (typeof userModel !== "undefined") ? Math.min(300, userModel.count * 50 + 20) : 100
+        width: 260 * container.uiScale
+        height: (typeof userModel !== "undefined") ? Math.min(300 * container.uiScale, userModel.count * 50 * container.uiScale + 20 * container.uiScale) : 100 * container.uiScale
         x: (parent.width - width) / 2
-        y: (parent.height - height) / 2 - 50
+        y: (parent.height - height) / 2 - 50 * container.uiScale
         modal: true
         focus: true
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside 
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         onOpened: userList.forceActiveFocus()
         background: Rectangle {
-            radius: 24
+            radius: 24 * container.uiScale
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.08)
             // Convex glass: brighter top, darker bottom -- popups appear raised.
@@ -872,42 +883,42 @@ Rectangle {
         ListView {
             id: userList
             anchors.fill: parent
-            anchors.margins: 10
+            anchors.margins: 10 * container.uiScale
             model: (typeof userModel !== "undefined") ? userModel : null
-            spacing: 5
+            spacing: 5 * container.uiScale
             clip: true
             focus: true
             currentIndex: container.userIndex
             highlightFollowsCurrentItem: true
             delegate: ItemDelegate {
                 width: parent.width
-                height: 40
+                height: 40 * container.uiScale
                 property bool isCurrent: index === userList.currentIndex
                 background: Rectangle {
                     color: isCurrent ? Qt.rgba(1, 1, 1, 0.10) : (hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                    radius: 12
+                    radius: 12 * container.uiScale
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Rectangle {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 8
-                        width: 4
-                        height: isCurrent ? 16 : 0
+                        anchors.leftMargin: 8 * container.uiScale
+                        width: 4 * container.uiScale
+                        height: isCurrent ? 16 * container.uiScale : 0
                         color: container.extractedAccent
-                        radius: 2
+                        radius: 2 * container.uiScale
                         Behavior on height { NumberAnimation { duration: 150 } }
                     }
                 }
                 contentItem: RowLayout {
                     anchors.fill: parent
                     spacing: 0
-                    Item { Layout.preferredWidth: 20 }
+                    Item { Layout.preferredWidth: 20 * container.uiScale }
                     Rectangle {
-                        Layout.preferredWidth: 28
-                        Layout.preferredHeight: 28
+                        Layout.preferredWidth: 28 * container.uiScale
+                        Layout.preferredHeight: 28 * container.uiScale
                         Layout.alignment: Qt.AlignVCenter
                         color: isCurrent ? container.extractedAccent : Qt.rgba(1, 1, 1, 0.10)
-                        radius: 14
+                        radius: 14 * container.uiScale
                         Text {
                             anchors.centerIn: parent
                             text: {
@@ -918,12 +929,12 @@ Rectangle {
                                 return finalVal.charAt(0).toUpperCase();
                             }
                             color: isCurrent ? "#1A1C18" : "white"
-                            font.pixelSize: 12
+                            font.pixelSize: 12 * container.uiScale
                             font.family: fontBold.name
                             font.weight: Font.Bold
                         }
                     }
-                    Item { Layout.preferredWidth: 12 }
+                    Item { Layout.preferredWidth: 12 * container.uiScale }
                     Text {
                         Layout.fillWidth: true
                         text: {
@@ -935,11 +946,11 @@ Rectangle {
                             return cleanName(d ? d : (r ? r : (n_r ? n_r : e)));
                         }
                         color: isCurrent ? "white" : (hovered ? "#DDDDDD" : "#AAAAAA")
-                        font.pixelSize: 15
+                        font.pixelSize: 15 * container.uiScale
                         font.family: config.fontFamily
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
-                        rightPadding: 60
+                        rightPadding: 60 * container.uiScale
                         elide: Text.ElideRight
                     }
                 }
@@ -957,19 +968,19 @@ Rectangle {
 
     Popup {
         id: sessionPopup
-        width: 360
-        height: (typeof sessionModel !== "undefined") ? Math.min(500, sessionModel.count * 80 + 40) : 200
+        width: 360 * container.uiScale
+        height: (typeof sessionModel !== "undefined") ? Math.min(500 * container.uiScale, sessionModel.count * 80 * container.uiScale + 40 * container.uiScale) : 200 * container.uiScale
         // Anchor above the session pill, right-aligned to it. Coordinates are in
         // `container` space (the popup's parent), so map the pill's top-right corner
         // into that space and offset upward by the popup's own height + a small gap.
         x: sessionPill.x + sessionPill.width - width
-        y: sessionPill.y - height - 16
+        y: sessionPill.y - height - 16 * container.uiScale
         modal: true
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         onOpened: sessionList.forceActiveFocus()
         background: Rectangle {
-            radius: 24
+            radius: 24 * container.uiScale
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.08)
             // Convex glass: brighter top, darker bottom -- popups appear raised.
@@ -983,41 +994,41 @@ Rectangle {
         ListView {
             id: sessionList
             anchors.fill: parent
-            anchors.margins: 20
+            anchors.margins: 20 * container.uiScale
             model: (typeof sessionModel !== "undefined") ? sessionModel : null
-            spacing: 10
+            spacing: 10 * container.uiScale
             clip: true
             focus: true
             currentIndex: container.sessionIndex
             highlightFollowsCurrentItem: true
             delegate: ItemDelegate {
                 width: parent.width
-                height: 80
+                height: 80 * container.uiScale
                 property bool isCurrent: index === sessionList.currentIndex
                 background: Rectangle {
                     color: isCurrent ? Qt.rgba(1, 1, 1, 0.10) : (hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                    radius: 24
+                    radius: 24 * container.uiScale
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Rectangle {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 16
-                        width: 8
-                        height: isCurrent ? 32 : 0
+                        anchors.leftMargin: 16 * container.uiScale
+                        width: 8 * container.uiScale
+                        height: isCurrent ? 32 * container.uiScale : 0
                         color: container.extractedAccent
-                        radius: 4
+                        radius: 4 * container.uiScale
                         Behavior on height { NumberAnimation { duration: 150 } }
                     }
                 }
                 contentItem: RowLayout {
                     anchors.fill: parent
                     spacing: 0
-                    Item { Layout.preferredWidth: 40 }
+                    Item { Layout.preferredWidth: 40 * container.uiScale }
                     Text {
-                        Layout.preferredWidth: 80
+                        Layout.preferredWidth: 80 * container.uiScale
                         text: "󰟀"
                         color: isCurrent ? container.extractedAccent : "gray"
-                        font.pixelSize: 32
+                        font.pixelSize: 32 * container.uiScale
                         font.family: config.fontFamily
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -1030,12 +1041,12 @@ Rectangle {
                             return cleanName(n_val ? n_val : f_val);
                         }
                         color: isCurrent ? "white" : "#AAAAAA"
-                        font.pixelSize: 28
+                        font.pixelSize: 28 * container.uiScale
                         font.family: config.fontFamily
                         font.weight: Font.Medium
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
-                        rightPadding: 120
+                        rightPadding: 120 * container.uiScale
                         elide: Text.ElideRight
                     }
                 }

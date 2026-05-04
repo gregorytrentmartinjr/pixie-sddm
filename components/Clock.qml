@@ -19,6 +19,10 @@ Item {
 
     property string fontFamily: "Google Sans Flex Freeze"
 
+    // Layout scale (1.0 = 4K reference). Set by the caller; defaults to 1.0
+    // so the component still renders at native size if used standalone.
+    property real uiScale: 1.0
+
     // Clock format from theme.conf – matches OS quickshell values:
     //   "hh:mm"   = 24-hour (default)
     //   "h:mm AP" = 12-hour AM/PM
@@ -201,24 +205,24 @@ Item {
 
         // First Column: Tens digit of Hour over Tens digit of Minute
         Column {
-            spacing: -260
+            spacing: -260 * clock.uiScale
             Text {
                 text: clock.timeStr.charAt(0)
                 color: clock.smartHoursColor
-                font.pixelSize: 400
+                font.pixelSize: 400 * clock.uiScale
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 260
+                width: 260 * clock.uiScale
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
             Text {
                 text: clock.timeStr.charAt(2)
                 color: clock.smartMinutesColor
-                font.pixelSize: 400
+                font.pixelSize: 400 * clock.uiScale
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 260
+                width: 260 * clock.uiScale
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
@@ -226,24 +230,24 @@ Item {
 
         // Second Column: Ones digit of Hour over Ones digit of Minute
         Column {
-            spacing: -260
+            spacing: -260 * clock.uiScale
             Text {
                 text: clock.timeStr.charAt(1)
                 color: clock.smartHoursColor
-                font.pixelSize: 400
+                font.pixelSize: 400 * clock.uiScale
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 260
+                width: 260 * clock.uiScale
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
             Text {
                 text: clock.timeStr.charAt(3)
                 color: clock.smartMinutesColor
-                font.pixelSize: 400
+                font.pixelSize: 400 * clock.uiScale
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
-                width: 260
+                width: 260 * clock.uiScale
                 horizontalAlignment: Text.AlignHCenter
                 antialiasing: true
             }
@@ -252,15 +256,15 @@ Item {
         // AM/PM indicator – only visible in 12-hour mode
         Item {
             visible: clock.is12Hour
-            width: 120
-            height: 540   // matches the effective height of the digit columns (400+400-260)
+            width: 120 * clock.uiScale
+            height: 540 * clock.uiScale  // matches the effective height of the digit columns (400+400-260)
             Text {
                 text: clock.ampmStr
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 36
+                anchors.bottomMargin: 36 * clock.uiScale
                 color: clock.smartMinutesColor
-                font.pixelSize: 96
+                font.pixelSize: 96 * clock.uiScale
                 font.family: clock.fontFamily
                 font.weight: Font.Medium
                 antialiasing: true
