@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
+import QtQuick.Shapes
 import "components"
 
 Rectangle {
@@ -682,6 +683,7 @@ Rectangle {
 
                 // Password field with embedded submit button
                 Item {
+                    id: passwordContainer
                     width: 720 * container.uiScale
                     height: 112 * container.uiScale
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -696,7 +698,9 @@ Rectangle {
                         rightPadding: 120 * container.uiScale
                         font.pixelSize: 30 * container.uiScale
                         font.family: config.fontFamily
-                        color: "white"
+                        color: "transparent" // Hide the actual password characters
+                        selectionColor: Qt.rgba(1, 1, 1, 0.2)
+                        selectedTextColor: "transparent"
                         focus: loginState.visible
                         enabled: !container.isLoggingIn
                         selectByMouse: true
@@ -706,9 +710,6 @@ Rectangle {
                             border.width: 0
                             opacity: parent.enabled ? 1.0 : 0.5
 
-                            // Vertical gradient simulates a recessed/concave glass surface:
-                            // dimmer at the top (shadow from the upper lip), brighter at the
-                            // bottom (catches reflected light) -- reads as inset rather than raised.
                             gradient: Gradient {
                                 GradientStop { position: 0.0; color: loginState.isError ? Qt.rgba(1, 0.4, 0.4, 0.06) : Qt.rgba(1, 1, 1, 0.03) }
                                 GradientStop { position: 1.0; color: loginState.isError ? Qt.rgba(1, 0.4, 0.4, 0.20) : Qt.rgba(1, 1, 1, 0.10) }
@@ -726,6 +727,70 @@ Rectangle {
                         }
 
                         onAccepted: container.doLogin()
+                    }
+
+                    // Animated Password Symbols (Moved outside TextField to avoid clipping)
+                    Flickable {
+                        id: symbolsFlickable
+                        anchors.left: passwordField.left
+                        anchors.leftMargin: passwordField.leftPadding
+                        anchors.right: passwordField.right
+                        anchors.rightMargin: passwordField.rightPadding
+                        anchors.verticalCenter: passwordField.verticalCenter
+                        height: 48 * container.uiScale
+                        clip: true
+                        interactive: false // Controlled by password length
+                        contentWidth: symbolsRow.implicitWidth
+                        contentX: Math.max(0, contentWidth - width)
+                        
+                        Behavior on contentX {
+                            NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
+                        }
+
+                        Row {
+                            id: symbolsRow
+                            spacing: 12 * container.uiScale
+                            visible: passwordField.text.length > 0
+
+                            Repeater {
+                                model: passwordField.text.length
+                                delegate: Item {
+                                    width: 42 * container.uiScale
+                                    height: 42 * container.uiScale
+
+                                    MaterialShape {
+                                        id: materialShape
+                                        anchors.centerIn: parent
+                                        implicitSize: 42 * container.uiScale
+                                        color: config.primaryColor
+
+                                        property list<var> charShapes: [
+                                            MaterialShape.Shape.Clover4Leaf,
+                                            MaterialShape.Shape.Arrow,
+                                            MaterialShape.Shape.Pill,
+                                            MaterialShape.Shape.SoftBurst,
+                                            MaterialShape.Shape.Diamond,
+                                            MaterialShape.Shape.ClamShell,
+                                            MaterialShape.Shape.Pentagon,
+                                        ]
+                                        shape: charShapes[index % charShapes.length]
+
+                                        scale: 0
+                                        opacity: 0
+
+                                        Component.onCompleted: {
+                                            appearAnim.start()
+                                        }
+
+                                        ParallelAnimation {
+                                            id: appearAnim
+                                            NumberAnimation { target: materialShape; property: "scale"; from: 0.3; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+                                            NumberAnimation { target: materialShape; property: "opacity"; from: 0; to: 0.7; duration: 150 }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // Submit button -- small circle inside the field's right edge.
